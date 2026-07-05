@@ -1,0 +1,2209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Take2</title>
+  <meta name="theme-color" content="#a5e8ff">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Take2">
+  <style>
+/* ===== Take2 ポップスタイル ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: 'Hiragino Maru Gothic ProN', 'BIZ UDGothic', 'Yu Gothic UI', sans-serif;
+  background: linear-gradient(160deg, #a5e8ff 0%, #d8c8ff 55%, #ffd6ec 100%);
+  color: #333; overflow-x: hidden;
+}
+body.flash { animation: flashbg .18s 4 alternate; }
+@keyframes flashbg { to { background: #fff36b; } }
+
+#app { max-width: 480px; margin: 0 auto; min-height: 100%; padding: 10px 10px 24px; position: relative; }
+#app.shake { animation: shake .1s 7; }
+@keyframes shake {
+  25% { transform: translate(-7px, 3px) rotate(-1deg); }
+  75% { transform: translate(7px, -3px) rotate(1deg); }
+}
+
+.hidden { display: none !important; }
+.screen { padding-top: 8px; }
+
+/* リーチ緊張演出：画面の縁が赤く脈打つ */
+#tension {
+  position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0;
+  box-shadow: inset 0 0 55px 8px rgba(225, 29, 72, .55);
+}
+#tension.on { animation: tensionPulse 1.5s ease-in-out infinite; }
+@keyframes tensionPulse { 0%, 100% { opacity: .25; } 50% { opacity: .85; } }
+
+/* ---- 共通パーツ ---- */
+h2 { font-size: 15px; margin-bottom: 8px; color: #6b21a8; }
+.panel {
+  background: rgba(255,255,255,.75); border-radius: 18px;
+  padding: 14px; margin: 12px 0; box-shadow: 0 3px 10px rgba(100,60,160,.12);
+}
+.btn {
+  display: block; width: 100%; margin: 8px 0; padding: 13px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, #38bdf8, #818cf8); color: #fff;
+  font-size: 16px; font-weight: bold; font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(80,80,170,.35); transition: transform .06s;
+}
+.btn:active { transform: translateY(3px); box-shadow: none; }
+.btn:disabled { opacity: .4; box-shadow: none; }
+.btn-big { padding: 17px; font-size: 20px; background: linear-gradient(135deg, #fb923c, #f43f5e); box-shadow: 0 5px 0 rgba(190,50,80,.4); }
+.btn-mini { padding: 8px; font-size: 13px; background: #cbd5e1; color: #475569; box-shadow: 0 3px 0 #94a3b8; }
+.btn-sub { background: #cbd5e1; color: #475569; box-shadow: 0 4px 0 #94a3b8; }
+.btn-warn { background: linear-gradient(135deg, #f87171, #ef4444); box-shadow: 0 4px 0 #b91c1c; }
+.btn-play { background: linear-gradient(135deg, #34d399, #10b981); box-shadow: 0 4px 0 #047857; }
+.btn-don {
+  padding: 22px; font-size: 30px; letter-spacing: 4px;
+  background: linear-gradient(135deg, #facc15, #f43f5e); box-shadow: 0 6px 0 #9f1239;
+  animation: donpulse .5s infinite alternate;
+}
+@keyframes donpulse { to { transform: scale(1.06); } }
+
+.avatar {
+  width: 46px; height: 46px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 26px;
+  border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.18);
+}
+.avatar.mini { width: 30px; height: 30px; font-size: 17px; vertical-align: middle; }
+
+.chip {
+  display: inline-block; background: rgba(255,255,255,.85); border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; font-weight: bold; margin: 2px; color: #555;
+}
+.chip-don { color: #be123c; }
+.chip-btn { cursor: pointer; background: #6366f1; color: #fff; }
+.chip-lap { background: #fbbf24; color: #7c2d12; }
+.chip-wait { background: #1e293b; color: #fde047; }
+.chip-stack { background: #f43f5e; color: #fff; animation: donpulse .4s infinite alternate; }
+.chip-turn { background: #22c55e; color: #fff; }
+
+/* ---- カード ---- */
+.card {
+  width: 56px; height: 80px; border-radius: 9px; background: #fff; flex-shrink: 0;
+  border: 2px solid #d8d8e8; box-shadow: 0 2px 5px rgba(0,0,0,.15);
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; font-family: inherit;
+}
+.card .c-rank { font-size: 22px; font-weight: bold; line-height: 1; }
+.card .c-suit { font-size: 22px; line-height: 1.2; }
+.card.red { color: #e11d48; }
+.card.black { color: #1e293b; }
+.card.joker { background: linear-gradient(160deg, #fef08a, #fda4af); color: #7c2d12; }
+.card .jk { font-size: 30px; }
+.card .jk-label { font-size: 9px; font-weight: bold; letter-spacing: 1px; }
+.card.back {
+  background: repeating-linear-gradient(45deg, #818cf8, #818cf8 6px, #6366f1 6px, #6366f1 12px);
+  color: #fff; border-color: #4f46e5; cursor: pointer;
+}
+.card.back span { font-size: 11px; font-weight: bold; }
+.card.back b { font-size: 20px; }
+.card.field { width: 72px; height: 102px; }
+.card.field .c-rank, .card.field .c-suit { font-size: 30px; }
+.card.fly {
+  position: fixed; z-index: 90; margin: 0; pointer-events: none;
+  transition: transform .4s cubic-bezier(.3, 1.15, .4, 1);
+  box-shadow: 0 6px 16px rgba(0,0,0,.3);
+}
+.opp.played { animation: oppPop .5s; }
+@keyframes oppPop {
+  30% { transform: scale(1.13); box-shadow: 0 0 0 4px #f59e0b, 0 3px 12px rgba(245,158,11,.5); }
+}
+.card.back.fly-don {
+  position: fixed; width: 28px; height: 40px; margin: 0; z-index: 95;
+  pointer-events: none; cursor: default;
+  transition: transform .6s cubic-bezier(.35, 1, .5, 1);
+  box-shadow: 0 4px 10px rgba(0,0,0,.35);
+}
+.say-label {
+  position: fixed; z-index: 96; pointer-events: none;
+  color: #fff; font-weight: bold; font-size: 14px;
+  padding: 5px 14px; border-radius: 12px; white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  animation: fadeup 1s both; transform-origin: bottom center;
+}
+.say-label { --tail: #64748b; }
+.say-tail {
+  position: absolute; bottom: -8px; margin-left: -7px; width: 0; height: 0;
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-top: 9px solid var(--tail);
+}
+.say-tail.up {
+  bottom: auto; top: -8px;
+  border-top: none; border-bottom: 9px solid var(--tail);
+}
+.say-label.say-pass { background: #64748b; --tail: #64748b; }
+.say-label.say-reach { background: #e11d48; --tail: #e11d48; font-size: 15px; animation: sayPop 1.3s both; }
+.say-label.say-unreach { background: #334155; --tail: #334155; }
+.say-label.say-win { background: linear-gradient(135deg, #f59e0b, #f43f5e); --tail: #f59e0b; font-size: 15px; animation: sayPop 1.4s both; }
+.say-label.say-last { background: #ea580c; --tail: #ea580c; border: 2px solid #fff; font-size: 15px; animation: sayPop 1.3s both; }
+.say-label.say-quip { background: #fff; color: #444; --tail: #fff; font-size: 12px; border: 1px solid #e2e8f0; }
+.say-label.say-don-big {
+  background: #18181b; color: #fecaca; --tail: #18181b;
+  font-size: 20px; letter-spacing: 1px; border: 2px solid #e11d48;
+  box-shadow: 0 0 18px rgba(225,29,72,.8);
+  animation: sayPop 1.5s both;
+}
+.say-label.say-win-big {
+  background: linear-gradient(135deg, #f59e0b, #f43f5e); --tail: #f59e0b;
+  font-size: 20px; letter-spacing: 1px; border: 2px solid #fff;
+  box-shadow: 0 0 18px rgba(245,158,11,.9);
+  animation: sayPop 1.5s both;
+}
+@keyframes sayPop {
+  from { opacity: 0; transform: scale(.3); }
+  14% { opacity: 1; transform: scale(1.15); }
+  24% { transform: scale(1); }
+  82% { opacity: 1; }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+.don-move-label {
+  position: fixed; z-index: 96; pointer-events: none;
+  background: #e11d48; color: #fff; font-weight: bold; font-size: 13px;
+  padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  animation: fadeup 1.6s both;
+}
+@keyframes fadeup {
+  from { opacity: 0; transform: translateY(10px); }
+  18% { opacity: 1; transform: none; }
+  80% { opacity: 1; }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+.declared-card { border-width: 3px; animation: declpulse .7s infinite alternate; }
+@keyframes declpulse {
+  from { box-shadow: 0 0 4px rgba(245,158,11,.5); border-color: #fbbf24; }
+  to { box-shadow: 0 0 18px rgba(245,158,11,1); border-color: #f59e0b; }
+}
+.ribbon {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  background: #f59e0b; color: #fff; font-size: 10px; font-weight: bold;
+  padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,.25);
+}
+
+/* ---- ゲーム画面 ---- */
+#opponents { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.opp {
+  background: rgba(255,255,255,.72); border-radius: 14px; padding: 8px 3px 6px;
+  text-align: center; position: relative; border: 3px solid transparent; min-height: 96px;
+}
+.opp.turn { border-color: #22c55e; background: #ecfdf5; }
+.opp.done { opacity: .55; }
+.opp-name { font-size: 11px; font-weight: bold; margin-top: 3px; white-space: nowrap; overflow: hidden; }
+.mini-hand {
+  display: flex; justify-content: center; align-items: flex-end;
+  height: 19px; margin-top: 3px; overflow: hidden; padding: 0 2px;
+}
+.mini-back {
+  width: 12px; height: 17px; border-radius: 2.5px; flex-shrink: 0;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  border: 1px solid #fff; box-shadow: 1px 0 2px rgba(0,0,0,.25);
+}
+.mini-back.many { background: linear-gradient(135deg, #f87171, #dc2626); }
+.mini-back.last {
+  background: linear-gradient(135deg, #fde047, #f59e0b);
+  animation: blink .55s infinite alternate;
+}
+.opp-cnt { font-size: 10px; color: #666; font-weight: bold; }
+.reach-badge {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  background: #f43f5e; color: #fff; font-size: 10px; font-weight: bold;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  animation: blink .55s infinite alternate; z-index: 2;
+}
+.reach-badge.inline { position: static; transform: none; font-size: 11px; padding: 3px 9px; }
+@keyframes blink { to { opacity: .35; } }
+
+#center { text-align: center; padding: 10px 0 6px; }
+#chips { margin-bottom: 8px; }
+#table-row { display: flex; justify-content: center; align-items: flex-start; gap: 26px; }
+#field-pile { position: relative; }
+.declared {
+  margin-top: 5px; background: #fff; border-radius: 999px; font-size: 12px;
+  font-weight: bold; padding: 2px 8px; display: inline-block;
+}
+.declared.red { color: #e11d48; } .declared.black { color: #1e293b; }
+#my-area {
+  position: sticky; bottom: 0; background: rgba(255,255,255,.85);
+  border-radius: 20px 20px 0 0; padding: 10px 8px 14px; margin: 8px -4px 0;
+  box-shadow: 0 -4px 14px rgba(100,60,160,.15);
+}
+#my-head { font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#hand {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 6px; row-gap: 16px; padding: 16px 4px 8px; min-height: 104px;
+}
+.hand-card { transition: transform .12s; }
+.hand-card.idle { opacity: .92; }
+.hand-card.ok { border-color: #34d399; box-shadow: 0 0 8px rgba(52,211,153,.8); }
+.hand-card.sel { transform: translateY(-14px); border-color: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,.9); }
+#controls { display: flex; gap: 8px; }
+#controls .btn { margin: 4px 0; padding: 12px 4px; font-size: 14px; }
+#hint { font-size: 12px; color: #be123c; font-weight: bold; text-align: center; min-height: 16px; margin-top: 2px; }
+
+/* ---- オーバーレイ ---- */
+#overlay {
+  position: fixed; inset: 0; background: rgba(30,20,60,.55); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+#overlay.overlay-top { align-items: flex-start; padding-top: 56px; background: rgba(30,20,60,.15); }
+#overlay-box {
+  background: #fff; border-radius: 22px; padding: 22px 18px; width: 100%; max-width: 340px;
+  text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.35);
+}
+#overlay-box h3 { margin-bottom: 10px; color: #6b21a8; }
+.ov-note { font-size: 12px; color: #888; margin-bottom: 10px; }
+.ov-cards { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+.ov-cards .card { cursor: pointer; }
+.ov-cards.got { max-height: 42vh; overflow-y: auto; padding: 4px; }
+.ov-cards.got .card { cursor: default; }
+.ov-suits { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }
+.suit-btn {
+  width: 64px; height: 64px; border-radius: 16px; border: 3px solid #e2e8f0; background: #fff;
+  font-size: 34px; cursor: pointer; box-shadow: 0 3px 0 #cbd5e1;
+}
+.suit-btn.red { color: #e11d48; } .suit-btn.black { color: #1e293b; }
+.suit-btn:active { transform: translateY(3px); box-shadow: none; }
+.don-chance {
+  font-size: 26px; font-weight: bold; color: #f43f5e; letter-spacing: 2px;
+  animation: donpulse .4s infinite alternate; margin-bottom: 8px;
+}
+
+/* ---- ドン演出 ---- */
+#don-fx {
+  position: fixed; inset: 0; z-index: 100; background: rgba(255, 240, 90, .82);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 20px;
+}
+.don-text {
+  font-size: clamp(40px, 20vw, 96px); white-space: nowrap;
+  font-weight: 900; color: #e11d48;
+  text-shadow: 5px 5px 0 #fff, -3px -3px 0 #fff, 0 8px 18px rgba(0,0,0,.3);
+  animation: donin .45s cubic-bezier(.2, 2.2, .4, 1) both;
+  transform-origin: center;
+}
+.don-text.long { font-size: clamp(26px, 10.5vw, 64px); }
+.don-text.mid { font-size: clamp(32px, 14vw, 82px); }
+.confetti {
+  position: fixed; top: -14px; width: 9px; height: 14px; border-radius: 2px;
+  z-index: 105; pointer-events: none;
+  animation: confettiFall linear both;
+}
+@keyframes confettiFall { to { transform: translateY(108vh) rotate(720deg); } }
+@keyframes shockPop { from { transform: scale(0); } to { transform: scale(1); } }
+#don-fx.gloom { background: rgba(15, 10, 32, .9); }
+#don-fx.glory { background: rgba(253, 224, 71, .92); }
+#don-fx.gloom-mid { background: rgba(99, 102, 241, .88); }
+.loser-skull { font-size: 66px; animation: shockPop .55s cubic-bezier(.3, 1.6, .5, 1) both; }
+.loser-name { color: #e2e8f0; font-size: 23px; font-weight: 900; margin-top: 10px; }
+.loser-quip { color: #94a3b8; font-size: 14px; font-weight: bold; margin-top: 8px; }
+.rank-name { font-size: 26px; font-weight: 900; margin-top: 10px; }
+#don-fx.glory .rank-name { color: #92400e; text-shadow: 2px 2px 0 #fff; }
+#don-fx.gloom-mid .rank-name { color: #fff; }
+.don-who { display: flex; gap: 10px; justify-content: center; margin-bottom: 6px; }
+.don-avatar {
+  width: 68px; height: 68px; border-radius: 50%; font-size: 38px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 4px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  animation: donin .45s cubic-bezier(.2, 2.2, .4, 1) both;
+}
+.don-who-names { font-size: 19px; font-weight: 900; color: #7c2d12; margin-bottom: 4px; }
+@keyframes donin { from { transform: scale(6) rotate(-14deg); opacity: 0; } to { transform: scale(1) rotate(-4deg); opacity: 1; } }
+.don-sub { font-size: 17px; font-weight: bold; margin-top: 16px; color: #7c2d12; line-height: 1.7; }
+.don-cards { font-size: 34px; margin-top: 8px; animation: flycards 1.2s ease-in both; }
+@keyframes flycards { from { transform: translateX(-130px); opacity: 0; } 30% { opacity: 1; } to { transform: translateX(130px); opacity: 0; } }
+.don-got { margin-top: 12px; font-size: 15px; font-weight: bold; color: #7c2d12; }
+.don-got-cards { margin-top: 6px; max-width: 92vw; }
+.mini-card {
+  display: inline-block; background: #fff; border: 1px solid #ddd; border-radius: 6px;
+  padding: 2px 7px; margin: 2px; font-size: 15px; font-weight: bold;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.mini-card.red { color: #e11d48; }
+.mini-card.black { color: #1e293b; }
+.mini-card.joker { background: linear-gradient(160deg, #fef08a, #fda4af); color: #7c2d12; }
+.new-tag {
+  position: absolute; top: -8px; right: -6px; background: #22c55e; color: #fff;
+  font-size: 9px; font-weight: bold; padding: 1px 6px; border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+
+/* ---- カットイン・トースト ---- */
+#cutin {
+  position: fixed; top: 34%; left: 0; right: 0; z-index: 60;
+  text-align: center; font-size: 30px; font-weight: 900; color: #fff; padding: 14px 8px;
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,.92) 18%, rgba(99,102,241,.92) 82%, transparent);
+  text-shadow: 2px 2px 0 rgba(0,0,0,.25); pointer-events: none;
+}
+#cutin.show { animation: cutin .9s ease both; }
+@keyframes cutin { from { transform: translateX(60px); opacity: 0; } 18% { transform: none; opacity: 1; } 85% { opacity: 1; } to { opacity: 0; } }
+#cutin.fx-reach { background: linear-gradient(90deg, transparent, rgba(244,63,94,.94) 18%, rgba(244,63,94,.94) 82%, transparent); }
+#cutin.fx-unreach { background: linear-gradient(90deg, transparent, rgba(100,116,139,.94) 18%, rgba(100,116,139,.94) 82%, transparent); font-size: 24px; }
+#cutin.fx-win { background: linear-gradient(90deg, transparent, rgba(245,158,11,.94) 18%, rgba(245,158,11,.94) 82%, transparent); }
+#cutin.fx-stack { background: linear-gradient(90deg, transparent, rgba(239,68,68,.94) 18%, rgba(239,68,68,.94) 82%, transparent); }
+/* 実況コメント行：手札エリア最下部の固定行（何にも重ならない） */
+#toast {
+  display: block; margin: 5px auto 0; width: fit-content; max-width: 100%;
+  height: 25px; line-height: 15px; box-sizing: border-box;
+  background: rgba(40,30,70,.85); color: #fff; font-size: 12px; font-weight: bold;
+  padding: 5px 14px; border-radius: 999px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+  opacity: 1; transition: opacity .35s;
+}
+#toast.off { opacity: 0; }
+
+/* ---- タイトル ---- */
+.logo {
+  text-align: center; font-size: 58px; font-weight: 900; color: #6d28d9;
+  text-shadow: 3px 3px 0 #fff, 6px 6px 0 rgba(109,40,217,.25); margin-top: 14px;
+}
+.logo span { color: #f43f5e; }
+.logo.small { font-size: 34px; margin-top: 6px; }
+.tagline { text-align: center; font-weight: bold; color: #7c3aed; margin: 2px 0 8px; }
+.opt-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.opt-label { font-size: 13px; font-weight: bold; color: #555; width: 72px; flex-shrink: 0; }
+.opt-btns { display: flex; gap: 5px; flex: 1; }
+.opt-btn {
+  flex: 1; padding: 9px 0; border-radius: 10px; border: 2px solid #e2e8f0;
+  background: #fff; font-family: inherit; font-size: 13px; font-weight: bold;
+  color: #64748b; cursor: pointer;
+}
+.opt-btn.sel { border-color: #f59e0b; background: #fffbeb; color: #b45309; }
+#char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.char-card {
+  background: #fff; border-radius: 14px; padding: 10px 4px; text-align: center;
+  border: 3px solid #e2e8f0; cursor: pointer; position: relative;
+}
+.char-card.sel { border-color: #f59e0b; background: #fffbeb; }
+.char-card.sel::after {
+  content: '✓'; position: absolute; top: -8px; right: -6px; background: #f59e0b; color: #fff;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 14px; font-weight: bold; line-height: 22px;
+}
+.ch-name { font-size: 12px; font-weight: bold; margin-top: 4px; }
+.ch-level { font-size: 10px; font-weight: bold; border-radius: 999px; display: inline-block; padding: 1px 8px; margin-top: 2px; }
+.ch-level.lv1 { background: #dcfce7; color: #15803d; }
+.ch-level.lv2 { background: #fef9c3; color: #a16207; }
+.ch-level.lv3 { background: #fee2e2; color: #b91c1c; }
+.ch-level.lv4 { background: #1e293b; color: #fde047; }
+.ch-quote { font-size: 9px; color: #999; margin-top: 3px; }
+.char-count { text-align: center; font-weight: bold; margin-top: 8px; color: #6b21a8; }
+
+/* ---- ルール説明 ---- */
+#rules-overlay {
+  position: fixed; inset: 0; z-index: 45; background: rgba(30,20,60,.6);
+  display: flex; justify-content: center; padding: 14px;
+}
+.rules-box {
+  background: #fff; border-radius: 20px; max-width: 480px; width: 100%;
+  overflow-y: auto; padding: 16px 16px 26px; box-shadow: 0 10px 40px rgba(0,0,0,.35);
+}
+.rules-box h1 { font-size: 22px; color: #6d28d9; text-align: center; margin: 4px 0 8px; }
+.rules-box h2 { margin: 16px 0 6px; border-left: 4px solid #818cf8; padding-left: 8px; font-size: 15px; }
+.rules-box ul { padding-left: 18px; margin: 4px 0; }
+.rules-box li { font-size: 13px; line-height: 1.8; }
+.rules-box .rk {
+  display: inline-block; min-width: 30px; text-align: center; background: #ede9fe; color: #6d28d9;
+  border-radius: 6px; padding: 1px 5px; margin-right: 6px; font-size: 12px;
+}
+.rules-close { display: block; margin-left: auto; width: auto; padding: 6px 14px; }
+
+/* ---- リザルト ---- */
+.stand-row { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-bottom: 1px dashed #e2d8f0; }
+.stand-row.r1 { background: #fff7d6; border-radius: 10px; }
+.stand-medal { width: 36px; text-align: center; font-size: 18px; font-weight: bold; flex-shrink: 0; }
+.stand-name { font-weight: bold; white-space: nowrap; flex-shrink: 0; }
+.stand-quip {
+  font-size: 10px; color: #999; margin-left: auto; text-align: right;
+  line-height: 1.35; /* 長いセリフは名前ではなくセリフ側が折り返す */
+}
+.score-formula { font-size: 14px; margin-bottom: 6px; }
+.score-move { font-size: 16px; font-weight: bold; }
+.plus { color: #16a34a; } .minus { color: #dc2626; }
+.total-row { display: flex; justify-content: space-between; padding: 5px 2px; border-bottom: 1px dashed #e2d8f0; font-size: 14px; }
+.total-row.muted { color: #999; }
+</style>
+
+</head>
+<body>
+<div id="tension"></div>
+<div id="app">
+
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="screen">
+    <h1 class="logo">Take<span>2</span></h1>
+    <p class="tagline">リーチして、ドン！</p>
+    <div class="panel">
+      <h2>ゲーム設定</h2>
+      <div class="opt-row"><span class="opt-label">参加人数</span><div id="opt-players" class="opt-btns"></div></div>
+      <div class="opt-row"><span class="opt-label">最初の手札</span><div id="opt-hand" class="opt-btns"></div></div>
+      <div class="opt-row"><span class="opt-label">ジョーカー</span><div id="opt-jokers" class="opt-btns"></div></div>
+    </div>
+    <div class="panel">
+      <h2 id="char-title">対戦相手を4人えらぶ</h2>
+      <div id="char-grid"></div>
+      <div id="char-count" class="char-count">0 / 4</div>
+      <button id="btn-random" class="btn btn-sub">🎲 ランダムに4人えらぶ</button>
+    </div>
+    <button id="btn-start" class="btn btn-big" disabled>ゲームスタート！</button>
+    <button id="btn-rules" class="btn btn-sub">📖 ルールを見る</button>
+    <div class="panel">
+      <h2>通算スコア</h2>
+      <div id="total-board"></div>
+      <button id="btn-reset-score" class="btn btn-mini">スコアをリセット</button>
+    </div>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game-screen" class="screen hidden">
+    <div id="opponents"></div>
+    <div id="center">
+      <div id="chips"></div>
+      <div id="table-row">
+        <div id="deck-pile"></div>
+        <div id="field-pile"></div>
+      </div>
+    </div>
+    <div id="my-area">
+      <div id="my-head"></div>
+      <div id="hand"></div>
+      <div id="controls"></div>
+      <div id="hint"></div>
+      <div id="toast" class="off"></div>
+    </div>
+  </div>
+
+  <!-- リザルト画面 -->
+  <div id="result-screen" class="screen hidden">
+    <h1 class="logo small">結果発表！</h1>
+    <div id="standings" class="panel"></div>
+    <div id="score-detail" class="panel"></div>
+    <div id="result-total" class="panel"></div>
+    <button id="btn-again" class="btn btn-big">もう1戦！</button>
+    <button id="btn-title" class="btn">メンバー変更（タイトルへ）</button>
+  </div>
+
+  <!-- ルール説明 -->
+  <div id="rules-overlay" class="hidden">
+    <div class="rules-box">
+      <button class="btn btn-mini rules-close" onclick="closeRules()">✕ とじる</button>
+      <h1>📖 Take2 ルール</h1>
+
+      <h2>きほんの流れ</h2>
+      <ul>
+        <li>トランプ52枚＋ジョーカー（0〜2枚・標準なし）。ひとりに手札を配って（標準5枚）、山札から1枚めくってスタート。人数・手札・ジョーカー枚数はタイトル画面で変更OK</li>
+        <li>自分の番：場のカードと<b>同じ数字</b>か<b>同じマーク</b>のカードを出す</li>
+        <li>出せない・出したくないときは山札から1枚引く（1ターン1枚まで）。引いたあと出してもいいし、パスしてもいい</li>
+        <li>先に手札がなくなった人から勝ち抜け。<b>最後まで残った1人が負け</b></li>
+      </ul>
+
+      <h2>特殊カード</h2>
+      <ul>
+        <li><b class="rk">A</b>次の人をスキップ</li>
+        <li><b class="rk">2</b>次の人が2枚ドロー。2かジョーカーを重ねると枚数が増えて次に回る（8では返せない）</li>
+        <li><b class="rk">8</b><b>いつでも出せる</b>。出したら好きなマークを宣言</li>
+        <li><b class="rk">9</b>順番が逆回りになる（もう一度9で戻る）</li>
+        <li><b class="rk">JOKER</b>何の上にも出せて、次の人が4枚ドロー。手札の中では<b>1〜13の好きな数字</b>になれる。ただし<b>ジョーカーで上がることはできない</b></li>
+        <li>最初にめくった1枚と、上がりの一手の特殊効果は発動しない</li>
+        <li><b>1周目（各プレイヤー最初の番）はカードの効果なし</b>。8は「いつでも出せる」も無効（数字かマークが合うときだけ出せる）。ジョーカーだけは+4なしでマーク宣言だけできる</li>
+      </ul>
+
+      <h2>リーチとドン！</h2>
+      <ul>
+        <li>手札2枚以上で数字の合計が<b>13以下</b>になったら自動で「リーチ」（まわりにはリーチ中とだけ見える）</li>
+        <li>リーチ中、だれかが出したカードの数字が自分の手札の合計と<b>ピッタリ一致</b>したら「ドン！」できる（自分の番じゃなくてもOK）</li>
+        <li>ドン成立：手札をぜんぶその人に押しつけて<b>その場で勝ち抜け！</b></li>
+        <li>最後の1枚で上がった人にもドンできる（上がり取り消しで手札を受け取る）</li>
+        <li>ドンされたカードの特殊効果は消える（8のマーク宣言だけは残る：手札を受け取ってから宣言）。2人同時のダブルドンもあり</li>
+        <li><b>引きドン</b>：直前の人が出したカードに、自分の番で1枚引いた結果、合計がピッタリになったら<b>遅れてドンできる</b>。間にパスした人がいるとダメ。<b>上がった直後の人にも発動でき、その場合はゲームに連れ戻す！</b></li>
+        <li><b>最後の1人のラストチャンス</b>：最後に残った人は、直前の上がりに対して運命の1枚を引いて引きドンを狙える（外れたら手札が増えて支払いも増えるギャンブル）</li>
+      </ul>
+
+      <h2>まとめ出し</h2>
+      <ul>
+        <li>同じ数字は何枚でもまとめて出せる。一番下は場につながるカードにして、次の人は<b>一番上のカード</b>に続く</li>
+        <li>ジョーカーも混ぜられる（その数字あつかい。4枚ドローの効果はなくなる）</li>
+        <li>2を2枚なら+4など効果は枚数分。Aをまとめて出すと「1人飛ばし」のくり返し＝1人おきに飛ぶ（2枚なら2つ先の2つ先が次の番）</li>
+      </ul>
+
+      <h2>そのほか</h2>
+      <ul>
+        <li>山札が尽きたら捨て札をシャッフルして再利用</li>
+        <li>点数：ビリの人の残り枚数 × 10点 × <b>（ドン回数＋1）倍</b>を、ビリから1位へ。ドンが起きるほど高得点！</li>
+      </ul>
+
+      <button class="btn" onclick="closeRules()">とじる</button>
+    </div>
+  </div>
+
+  <!-- オーバーレイ類 -->
+  <div id="overlay" class="hidden">
+    <div id="overlay-box"></div>
+  </div>
+  <div id="don-fx" class="hidden"></div>
+  <div id="cutin" class="hidden"></div>
+
+</div>
+<script>
+// ===== 定数・キャラクターデータ =====
+const SUITS = ['S', 'H', 'D', 'C'];
+const SUIT_CHAR = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const SUIT_NAME = { S: 'スペード', H: 'ハート', D: 'ダイヤ', C: 'クラブ' };
+const RANK_LABEL = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+
+// アカギの顔（Take2フォルダの画像を96pxに縮小してdataURI埋め込み。絵文字と同様にサイズはフォント連動）
+const AKAGI_FACE = '😎'; // 公開版は絵文字に差し替え
+
+const CHARACTERS = [
+  { key: 'pochi', name: 'ポチ', emoji: '🐶', color: '#f59e0b', level: 1, levelName: '初級',
+    donMiss: 0.3, drawWhim: 0,
+    quips: { hello: 'わん！よろしくな！', play: 'わん！とりあえずコレ！', reach: 'わんわん！リーチだ！',
+             don: 'わんっ！？ドーン！！', win: 'やったー！わん！', lose: 'くぅ〜ん…',
+             bigdraw: 'わわっ、いっぱい来た！', wary: 'なんかこわいぞ…わん…', taunt: 'まだ勝ってないぞ！わん！',
+             unreach: 'あれ？リーチ消えた…わん', pass: 'パスだわん…', last: 'ラスト1枚だわん！！',
+             joker: 'ひみつへいき、だわん！！', stackon: 'おかわりだわん！', suit8: 'このマークがすき！わん！',
+             bighand: 'も、もてないよ〜わん…', free: 'どれでもいいの？わーい！',
+             donpre: 'ん？んんん？？', two: 'えいっ！2まいひいて！', duel: 'いっきうち、だわん！',
+             winpre: 'これでおしまい、だわん！', donblock: 'その1まいはダメだわん！！', donned: 'わ、わ、わーん！！' } },
+  { key: 'miko', name: 'ミーコ', emoji: '🐱', color: '#ec4899', level: 1, levelName: '初級',
+    donMiss: 0.2, drawWhim: 0.15,
+    quips: { hello: 'にゃ〜、よろしく', play: 'にゃ〜、まあいっか', reach: 'にゃっ！リーチ〜',
+             don: 'にゃにゃ！ドン！', win: 'にゃはは、勝ち〜', lose: 'にゃぁ…',
+             bigdraw: 'にゃー！？多いって！', wary: 'にゃんか嫌な予感…', taunt: 'その1枚、出せるかにゃ〜？',
+             unreach: 'リーチ解除…にゃぁ', pass: 'パスにゃ〜', last: 'ラスト1枚にゃ！',
+             joker: 'にゃっはっは、ジョーカー！', stackon: 'お返しするにゃ〜', suit8: 'このマークの気分にゃ',
+             bighand: 'にゃぁ…手がいっぱい…', free: 'じゃあ、これにするにゃ',
+             donpre: 'にゃ？…にゃにゃ？', two: 'くらえにゃ〜！', duel: 'タイマンにゃ…！',
+             winpre: 'これで上がりにゃ〜！', donblock: '上がらせないにゃ！ドン！', donned: 'にゃんですと！？' } },
+  { key: 'penta', name: 'ペンタ', emoji: '🐧', color: '#38bdf8', level: 1, levelName: '初級',
+    donMiss: 0.35, drawWhim: 0,
+    quips: { hello: 'ペン…よろしくペン', play: 'これでいいペン', reach: 'リーチだペン！',
+             don: 'ペペン！？ドン！！', win: 'やったペン〜！', lose: 'ペン…寒い…',
+             bigdraw: 'ペ、ペンー！？', wary: 'こわいペン…', taunt: 'まだ油断できないペン',
+             unreach: '解除ペン…しょんぼり', pass: 'パスペン…', last: 'ラスト1枚ペン！',
+             joker: 'とっておきペン！！', stackon: 'そっちにあげるペン', suit8: 'このマークがいいペン',
+             bighand: 'おもいペン…', free: 'なんでもいいペン？',
+             donpre: 'ペン…？ペペン…！', two: 'くらうペン！', duel: '2人きりペン…！',
+             winpre: 'ラストペン！！', donblock: 'まだ終わらせないペン！！', donned: 'ペーーン！？！？' } },
+  { key: 'koron', name: 'コロン', emoji: '🐹', color: '#fbbf24', level: 1, levelName: '初級',
+    donMiss: 0.15, drawWhim: 0.25,
+    quips: { hello: 'よろしくだよ〜', play: 'これ、いらないや', reach: 'リーチだよっ！',
+             don: 'もぐもぐ…ドンっ！', win: 'えへへ、勝っちゃった', lose: 'ほっぺが落ちる〜…',
+             bigdraw: 'わぁ、いっぱい…もぐ', wary: 'ドキドキするよぉ…', taunt: 'あと1枚なんだ、ずるい〜',
+             unreach: 'あわわ、解除だよぉ', pass: 'パスだよぉ…', last: 'あと1枚だよっ！',
+             joker: 'じゃじゃーん！ジョーカー！', stackon: 'はい、どうぞ〜！', suit8: 'このマークにしよっと',
+             bighand: 'ほっぺに入りきらない〜', free: 'えへへ、選び放題だ〜',
+             donpre: 'あれ、これって…', two: 'はい、2枚どうぞっ', duel: 'ど、どっちが勝つの！？',
+             winpre: 'えいっ、これで最後！', donblock: 'だーめっ！ドンっ！', donned: 'ふぇぇぇん！？' } },
+  { key: 'kanta', name: 'カンタ', emoji: '🐵', color: '#84cc16', level: 2, levelName: '中級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: '見てろよ〜？', play: 'ほいっと！', reach: 'よっしゃ、リーチ！',
+             don: 'いただき！ドン！！', win: 'どんなもんだい！', lose: 'うっきー！？',
+             bigdraw: 'うっきー！？多すぎ！', wary: '…慎重にいくか', taunt: '上がらせないぜ〜？',
+             unreach: 'ちぇっ、解除か〜', pass: 'パスだ〜！次！', last: 'ラスト1枚！勝つぜ〜！',
+             joker: '出すぜ出すぜ〜！ジョーカー！', stackon: '倍返しだ〜！', suit8: 'マークチェンジだ！',
+             bighand: 'うわ、持ちきれん…', free: 'よーし、好きに出すぜ！',
+             donpre: 'お？おおお？？', two: 'くらえ〜！！', duel: 'サシの勝負だな！',
+             winpre: 'よっしゃ、上がりだ！', donblock: 'そうはさせるか！ドン！！', donned: 'うっきー！？マジか！！' } },
+  { key: 'hana', name: 'ハナ', emoji: '🐰', color: '#a78bfa', level: 2, levelName: '中級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'ふふ、お手柔らかに', play: 'ふふ、計画通り', reach: 'リーチ、です',
+             don: '…ドン。計画通り', win: 'ふふ、当然の結果ね', lose: 'そんな…',
+             bigdraw: 'きゃっ、こんなに…', wary: '危険な香りがするわ', taunt: '最後の1枚は出させない',
+             unreach: '…解除、です。残念', pass: 'パス、です', last: 'ラスト1枚、です！',
+             joker: '切り札、使います', stackon: 'お返しします、ね？', suit8: 'マークはこれに、します',
+             bighand: 'こんなに持てない、です…', free: 'なんでも良いなら…これ',
+             donpre: '…ふふ。来ましたね', two: 'どうぞ、2枚', duel: '決着を、つけましょう',
+             winpre: 'これで、フィニッシュです', donblock: '上がらせません。…ドン', donned: 'そ、そんな…計算外です…' } },
+  { key: 'shiro', name: 'シロー', emoji: '🐻‍❄️', color: '#60a5fa', level: 2, levelName: '中級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'よろしく頼む', play: 'まとめて、どんっ', reach: 'リーチだ',
+             don: 'いくぞ…ドン！！', win: 'ふぅ、いい勝負だった', lose: 'むう…出直すか',
+             bigdraw: 'むっ、手痛いな', wary: '警戒していくぞ', taunt: 'その上がり、阻止する',
+             unreach: 'むう、リーチ解除だ', pass: 'パスだ', last: 'ラスト1枚だ…！',
+             joker: '奥の手だ、ジョーカー！', stackon: '受け取ってもらおう', suit8: 'マークを変えるぞ',
+             bighand: 'むう…重装備すぎる', free: 'ならば、これを出そう',
+             donpre: '…その数字、待っていた', two: '2枚、受け取れ！', duel: '一騎打ちだ、正々堂々と',
+             winpre: 'これで決めさせてもらう！', donblock: 'させんっ！ドンだ！！', donned: 'ぬかった…！！' } },
+  { key: 'lily', name: 'リリィ', emoji: '🦊', color: '#f97316', level: 2, levelName: '中級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'ふふん、よろしくね', play: 'こういうの、好きなの', reach: 'リーチよ♪',
+             don: 'ひっかかったわね！ドン！', win: 'あら、勝っちゃった♪', lose: 'こんなはずじゃ…！',
+             bigdraw: 'ちょっと！ひどくない！？', wary: 'ふぅん、リーチねぇ…', taunt: 'あら、上がれるといいわね？',
+             unreach: 'あら、解除しちゃった', pass: 'パスよ、今はね', last: 'ふふ、ラスト1枚よ♪',
+             joker: 'うふふ、ジョーカーよ♪', stackon: '倍にしてお返しするわ♪', suit8: 'マークはわたしが決めるの',
+             bighand: 'ちょっと、持たせすぎよ！', free: 'あら、選び放題じゃない♪',
+             donpre: 'うふ、うふふふ…♪', two: 'プレゼントよ♪', duel: 'あなたと決着ね…♪',
+             winpre: 'ごちそうさま♪ラストよ', donblock: '残念、おあずけよ♪ドン！', donned: 'ちょっと！？聞いてないわよ！？' } },
+  { key: 'hakase', name: 'フクロウ博士', emoji: '🦉', color: '#0ea5e9', level: 3, levelName: '上級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'フム、手合わせ願おう', play: 'フム、これじゃな', reach: 'フム、リーチじゃ',
+             don: '読み通り…ドン！', win: '当然の帰結じゃな', lose: 'バカな…計算違いじゃと！？',
+             bigdraw: 'ぬう、計算が狂う…', wary: 'フム、警戒が必要じゃな', taunt: 'その1枚、読めておるぞ',
+             unreach: 'フム、リーチ解除じゃ', pass: 'フム、パスじゃ', last: 'フフム、ラスト1枚じゃ！',
+             joker: '奥義、ジョーカーじゃ！', stackon: 'フム、上乗せじゃな', suit8: 'このマークが最適解じゃ',
+             bighand: 'ぬう、手が回らんわい…', free: 'フム、では最善手を',
+             donpre: 'フ…フフフ…見えておったぞ', two: '2枚進呈じゃ', duel: 'フム、最終局面じゃな',
+             winpre: '詰みじゃ。これで終わり', donblock: '詰んでいたのはお主じゃ！ドン！', donned: 'バカな…読めなかっただと…！？' } },
+  { key: 'kurobee', name: 'クロベエ', emoji: '🐦‍⬛', color: '#64748b', level: 3, levelName: '上級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'カカカ、遊んでやるよ', play: 'カカ、ほらよ', reach: 'カカカ…リーチだぜ',
+             don: '甘いねぇ！ドン！！', win: 'カーッカッカ！俺の勝ちだ', lose: 'カァ…やるじゃねぇか',
+             bigdraw: 'カァ！？ふざけんな！', wary: 'カカ…嫌な気配だぜ', taunt: '甘い甘い、上がらせるかよ',
+             unreach: 'カァ…解除だぜ、ちっ', pass: 'カァ、パスだ', last: 'カカカ、ラスト1枚だぜ！',
+             joker: 'カカカ！切り札だぜ！', stackon: '利子つけて返すぜ、カカ', suit8: 'マークは俺が決める',
+             bighand: 'おいおい、持たせすぎだろ…', free: 'カカ、選ばせてもらうぜ',
+             donpre: 'くくく、、それだ', two: 'ほらよ、食らいな', duel: 'カカカ…決着つけようぜ',
+             winpre: 'カカカ、終いだぜ！', donblock: '上がらせると思ったか？ドン！！', donned: 'カァァ！？やりやがったな…！' } },
+  { key: 'gen', name: 'ゲンさん', emoji: '🐢', color: '#16a34a', level: 3, levelName: '上級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'わしゃ負けんぞい', play: 'あわてない、あわてない', reach: 'ほっほ、リーチじゃ',
+             don: 'ぬかったのう…ドン！', win: '亀の甲より年の功じゃ', lose: 'ほっほ、若いのう…',
+             bigdraw: 'ほっほ、手荒いのう', wary: '嵐の前は静かにのう', taunt: '最後の詰めが肝心じゃぞ',
+             unreach: 'ほっほ、仕切り直しじゃ', pass: 'ほっほ、パスじゃよ', last: 'ほっほ、あと1枚じゃ！',
+             joker: 'ほっほ、秘蔵の一枚じゃ', stackon: 'ほれ、お返しじゃ', suit8: 'このマークにするかのう',
+             bighand: 'ほっほ、甲羅が重いわい…', free: 'どれ、ゆっくり選ぶかのう',
+             donpre: 'ほう…ほほう…？', two: 'ほっほ、2枚じゃ', duel: 'ほっほ、最後の勝負じゃ',
+             winpre: 'ほっほ、上がらせてもらうぞい', donblock: 'まだまだ若いのう！ドン！', donned: 'ほっほ…甲羅にヒビが入るわい…' } },
+  { key: 'tsubasa', name: 'ツバサ', emoji: '🦅', color: '#a16207', level: 3, levelName: '上級',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: '全力でいくぜ！', play: '速攻だ！', reach: 'ロックオン！リーチ！',
+             don: '獲物発見！ドン！！', win: '狩り完了だぜ！', lose: 'クッ…次は逃さねぇ',
+             bigdraw: 'クッ、翼が重い…！', wary: '獲物はどこだ…', taunt: '逃がさねぇって言ったろ？',
+             unreach: 'クッ、照準リセットだ…', pass: 'クッ、パスだ…', last: '仕留めるぜ、ラスト1枚！',
+             joker: '切り札解禁だ！！', stackon: '加速して返すぜ！', suit8: '進路変更！このマークだ！',
+             bighand: 'クッ、翼がもげる…！', free: 'フリーか…なら最速で！',
+             donpre: '…見つけた', two: '食らえ！2枚！', duel: '一対一…望むところだ！',
+             winpre: '決めるぜ…ラストアタック！', donblock: '寸前で狩る！ドン！！', donned: 'クッ…狩られたのは俺か…！' } },
+  { key: 'akagi', name: 'アカギ', emoji: AKAGI_FACE, color: '#0f172a', level: 4, levelName: '伝説',
+    donMiss: 0, drawWhim: 0,
+    quips: { hello: 'ざわ……ざわ……', play: '死ねば助かるのに…', reach: 'リーチ…！',
+             don: 'ドン……！', win: '不合理に身をゆだねてこそギャンブル…', lose: '赤木しげるとして勝ち　負けたいのだ…',
+             bigdraw: '人をはめることばかり考えてきた人間の発想…痩せた考え…', wary: '熱い三流なら上等よ…！', taunt: '奴は死ぬまで保留する…',
+             unreach: 'リーチ解除だ……！', pass: 'スルーだ…！', last: 'この裸単騎には魔法がかけてある...！',
+             joker: 'ククク…意外に憶病だな…鷲頭巌……！', stackon: '倍プッシュだ......！', suit8: '流れを変えようか…！',
+             bighand: '面白い...狂気の沙汰ほど面白い', free: '寝ぼけるな…続行だ…ケチな点棒拾う気なし…！',
+             donpre: 'じじい、そのカードだ...！', two: 'まだまだ終わらせない…！', duel: 'どちらかが完全に倒れるまで...\n勝負の後は骨も残さない...！',
+             winpre: 'きたぜ...ぬるりと…', donblock: '逃がすかよ...！', donned: 'オレはこの8000で「後の3順」を買う...' } },
+];
+</script>
+
+<script>
+// ===== ルール判定（純粋関数） =====
+let _cardSeq = 0;
+
+function buildDeck(jokerCount) {
+  const d = [];
+  for (const s of SUITS) for (let r = 1; r <= 13; r++) d.push({ id: ++_cardSeq, suit: s, rank: r, joker: false });
+  const n = (jokerCount === undefined) ? 1 : jokerCount;
+  for (let i = 0; i < n; i++) d.push({ id: ++_cardSeq, suit: null, rank: 0, joker: true });
+  return d;
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function rankLabel(r) { return RANK_LABEL[r] || String(r); }
+function cardLabel(c) { return c.joker ? 'JOKER' : SUIT_CHAR[c.suit] + rankLabel(c.rank); }
+
+// 現在の場札（fieldRank=0 は単独ジョーカーが場に出ている状態）
+// 単独ジョーカーは通常なんでも出せるが、スート宣言付き（1周目ルール）なら宣言スートに続ける
+function effField(st) {
+  const top = st.discard[st.discard.length - 1];
+  if (st.fieldRank === 0) {
+    if (st.declaredSuit) return { joker: false, rank: 0, suit: st.declaredSuit };
+    return { joker: true };
+  }
+  return {
+    joker: false,
+    rank: st.fieldRank,
+    suit: top.joker ? st.declaredSuit : (st.declaredSuit || top.suit),
+  };
+}
+
+// カード1枚が場に続けられるか（8とジョーカーはいつでも可）
+// no8=true（1周目）のときは8の「いつでも出せる」を無効化＝通常の一致ルールのみ
+function connects(c, f, no8) {
+  if (f.joker) return true;
+  if (c.joker) return true;
+  if (c.rank === 8 && !no8) return true;
+  if (c.rank === f.rank) return true;
+  if (f.suit && c.suit === f.suit) return true;
+  return false;
+}
+
+// リーチ判定: 手札2枚以上 かつ 最小合計13以下（ジョーカーは1〜13の幅）
+function reachOf(hand) {
+  let min = 0, max = 0;
+  for (const c of hand) {
+    if (c.joker) { min += 1; max += 13; }
+    else { min += c.rank; max += c.rank; }
+  }
+  return { min, max, reach: hand.length >= 2 && min <= 13 };
+}
+
+// 出そうとしているカードの組の情報
+function setInfo(cards) {
+  if (!cards.length) return { ok: false, msg: 'カードを選んでください' };
+  const jokers = cards.filter(c => c.joker);
+  const nat = cards.filter(c => !c.joker);
+  if (nat.length && !nat.every(c => c.rank === nat[0].rank)) return { ok: false, msg: '同じ数字だけまとめられます' };
+  if (!nat.length && cards.length > 1) return { ok: false, msg: 'ジョーカー同士はまとめて出せない' };
+  return {
+    ok: true,
+    rank: nat.length ? nat[0].rank : 0,
+    hasJoker: jokers.length > 0,
+    soloJoker: cards.length === 1 && jokers.length === 1,
+    count: cards.length,
+  };
+}
+
+// 出せるかの総合判定。tops=一番上に置けるカードの候補
+function validatePlay(cards, hand, st, opts) {
+  opts = opts || {};
+  const info = setInfo(cards);
+  if (!info.ok) return info;
+  if (cards.length === hand.length && info.hasJoker) {
+    return { ok: false, msg: 'ジョーカーを含めて上がることはできない！' };
+  }
+  if (opts.stack) {
+    if (info.soloJoker || info.rank === 2) return { ok: true, info, tops: cards.slice() };
+    return { ok: false, msg: '精算中は「2」かジョーカーしか出せない！' };
+  }
+  const f = effField(st);
+  const no8 = !!opts.lap1; // 1周目は8の万能性なし
+  if (opts.free || (info.rank === 8 && !no8) || info.soloJoker || f.joker) {
+    return { ok: true, info, tops: cards.slice() };
+  }
+  const conn = cards.filter(c => connects(c, f, no8));
+  if (!conn.length) return { ok: false, msg: '場のカードに続かない！' };
+  let tops;
+  if (cards.length === 1) tops = conn;
+  else tops = cards.filter(c => conn.some(b => b.id !== c.id)); // 一番下に接続カードを残せる並びのみ
+  if (!tops.length) return { ok: false, msg: 'その組み合わせだと並べられない！' };
+  return { ok: true, info, tops };
+}
+
+// 場に出す並び（下→上の順の配列を返す）。一番下は接続カード
+function arrangeSet(cards, top, st, lap1) {
+  if (cards.length === 1) return cards.slice();
+  const rest = cards.filter(c => c.id !== top.id);
+  const f = effField(st);
+  let bottom = rest.find(c => connects(c, f, lap1)) || rest[0];
+  const middle = rest.filter(c => c.id !== bottom.id);
+  return [bottom, ...middle, top];
+}
+
+// ドン可能か（rank=場に出たカードの数字）
+function canDon(player, rank) {
+  if (player.rank || !player.reach) return false;
+  const r = reachOf(player.hand);
+  return r.min <= rank && rank <= r.max;
+}
+
+// 手札だけでドン可能かを判定（引きドン用：宣言状態に依存しない）
+function canDonHand(hand, rank) {
+  const r = reachOf(hand);
+  return r.reach && r.min <= rank && rank <= r.max;
+}
+</script>
+
+<script>
+// ===== CPU AI =====
+
+// 出せる組の候補を列挙（単独/まとめ/ジョーカー混ぜ/単独ジョーカー）
+function cpuCandidates(p, st, opts) {
+  const hand = p.hand;
+  const joker = hand.find(c => c.joker);
+  const groups = {};
+  hand.filter(c => !c.joker).forEach(c => (groups[c.rank] = groups[c.rank] || []).push(c));
+  const sets = [];
+  for (const r in groups) {
+    const g = groups[r];
+    g.forEach(c => sets.push([c]));
+    if (g.length > 1) sets.push(g.slice());
+    if (joker) sets.push(g.concat([joker]));
+  }
+  if (joker) sets.push([joker]);
+  const lap1 = p.turnsTaken <= 1;
+  const out = [];
+  for (const s of sets) {
+    const v = validatePlay(s, hand, st, { free: opts.free, stack: opts.stack, lap1 });
+    if (v.ok) out.push({ cards: s, info: v.info, tops: v.tops });
+  }
+  return out;
+}
+
+function canDrawFromDeck(st) { return st.deck.length > 0 || st.discard.length > 1; }
+
+function activePlayers(st) { return st.players.filter(q => !q.rank); }
+
+function nextActiveOf(st, p) {
+  const N = st.players.length;
+  let i = p.idx;
+  do { i = (i + st.dir + N) % N; } while (st.players[i].rank);
+  return st.players[i];
+}
+
+// 通常手番の選択
+function cpuTurn(p, st, opts) {
+  const ch = p.chara;
+  const cands = cpuCandidates(p, st, { free: opts.free });
+  if (!opts.afterDraw && ch.drawWhim && Math.random() < ch.drawWhim && canDrawFromDeck(st)) {
+    return { draw: true }; // ミーコの気まぐれドロー
+  }
+  if (!cands.length) {
+    if (!opts.afterDraw && canDrawFromDeck(st)) return { draw: true };
+    return { pass: true };
+  }
+  let pick;
+  if (ch.level === 1) {
+    const singles = cands.filter(c => c.cards.length === 1 && !c.info.soloJoker);
+    const pool = singles.length ? singles : cands;
+    pick = pool[Math.floor(Math.random() * pool.length)];
+  } else {
+    pick = cpuStrategicPick(p, st, cands, ch);
+  }
+  return cpuMakePlay(p, st, pick);
+}
+
+function cpuStrategicPick(p, st, cands, ch) {
+  const threats = activePlayers(st).filter(q => q !== p && q.reach);
+  const next = nextActiveOf(st, p);
+  const nextDanger = next !== p && next.hand.length <= 2; // 次の人が上がりそう
+  let best = null, bestScore = -Infinity;
+  for (const c of cands) {
+    const natSum = c.cards.filter(x => !x.joker).reduce((s, x) => s + x.rank, 0);
+    let score = natSum + c.cards.length * 2;
+    // ジョーカー温存（上級ほど強く。ドン射程が広がるため）
+    if (c.info.hasJoker) score -= (ch.level === 3 ? 15 : 4);
+    // 出した後にリーチできるなら加点
+    const after = p.hand.filter(x => !c.cards.some(y => y.id === x.id));
+    const ra = reachOf(after);
+    if (ra.reach) {
+      score += 6;
+      if (ch.key === 'kurobee') score += Math.max(0, 6 - Math.abs(ra.min - 8)); // 合計を8に寄せる
+    }
+    // リーチ者がいるときの上級戦略
+    if (threats.length && ch.level >= 3) {
+      if (c.info.rank === 1) score += 10;                 // A=絶対ドンされない＆スキップ
+      else if (c.info.rank === 2 || c.info.soloJoker) score += 9; // 強制ドローでリーチ解除を狙う
+      else score -= 5;                                    // それ以外はドンリスク
+    }
+    // 上がりそうな相手への妨害
+    if (nextDanger && ch.level >= 3) {
+      if (c.info.rank === 1) score += 12;
+      if (c.info.rank === 2 || c.info.soloJoker) score += 10;
+    }
+    // クロベエはピンチまでジョーカーを絶対温存
+    if (ch.key === 'kurobee' && c.info.hasJoker && p.hand.length > 3 && !nextDanger) score -= 20;
+    // ハナはスートを揃えて捨てる（残り手札の多数派スートを残す）
+    if (ch.key === 'hana' && !c.cards[0].joker) {
+      const suit = c.cards[0].suit;
+      const same = p.hand.filter(x => !x.joker && x.suit === suit).length;
+      score += same;
+    }
+    // シローはまとめ出し大好き
+    if (ch.key === 'shiro') score += c.cards.length * 3;
+    // リリィは特殊カードを好んで切る
+    if (ch.key === 'lily' && ([1, 2, 8, 9].includes(c.info.rank) || c.info.soloJoker)) score += 4;
+    // ツバサは攻め特化：リーチへ一直線＆8は終盤まで温存
+    if (ch.key === 'tsubasa') {
+      if (ra.reach) score += 6;
+      if (c.info.rank === 8 && p.hand.length > 3) score -= 6;
+    }
+    // ゲンさんは守り特化：ジョーカーを最後まで抱える
+    if (ch.key === 'gen' && c.info.hasJoker && p.hand.length > 2) score -= 10;
+    // アカギは伝説の勝負師：リーチへ最短＋切り札温存＋合計を8に寄せる（全部盛り）
+    if (ch.key === 'akagi') {
+      if (ra.reach) score += 8 + Math.max(0, 6 - Math.abs(ra.min - 8));
+      if (c.info.hasJoker && p.hand.length > 3 && !nextDanger) score -= 14;
+    }
+    score += Math.random() * 2;
+    if (score > bestScore) { bestScore = score; best = c; }
+  }
+  return best;
+}
+
+// 一番上のカードを決めて play アクションを作る
+function cpuMakePlay(p, st, pick) {
+  let top;
+  const natTops = pick.tops.filter(c => !c.joker);
+  if (natTops.length) {
+    // 残り手札の多数派スートを上にする（次も自分が続きやすい）
+    const after = p.hand.filter(x => !pick.cards.some(y => y.id === x.id));
+    const count = s => after.filter(x => !x.joker && x.suit === s).length;
+    natTops.sort((a, b) => count(b.suit) - count(a.suit));
+    top = natTops[0];
+  } else {
+    top = pick.tops[0]; // ジョーカーが上（スート宣言へ）
+  }
+  return { play: true, cards: pick.cards, top };
+}
+
+// スタック精算時の選択
+function cpuStack(p, st) {
+  const cands = cpuCandidates(p, st, { stack: true });
+  if (!cands.length) return { draw: true };
+  const twos = cands.filter(c => !c.info.soloJoker);
+  if (twos.length) {
+    twos.sort((a, b) => b.cards.length - a.cards.length); // まとめて上乗せ
+    return cpuMakePlay(p, st, twos[0]);
+  }
+  // ジョーカーしかない場合：上級は温存して引く（+4以上なら流石に出す）
+  if (p.chara.level >= 3 && st.stack < 4) return { draw: true };
+  return cpuMakePlay(p, st, cands[0]);
+}
+
+// ドンするか（初級は見逃しあり）
+function cpuDon(p) { return Math.random() >= p.chara.donMiss; }
+
+// スート宣言：残り手札の多数派
+function cpuSuit(p) {
+  let best = SUITS[Math.floor(Math.random() * 4)], bestN = -1;
+  for (const s of SUITS) {
+    const n = p.hand.filter(c => !c.joker && c.suit === s).length;
+    if (n > bestN) { bestN = n; best = s; }
+  }
+  return best;
+}
+</script>
+
+<script>
+// ===== ゲーム進行エンジン =====
+let state = null;
+let lastMembers = null;
+let lastHandSize = 4;
+let lastJokers = 0;
+let speedMode = 0; // 0=通常 / 1=早送り / 2=結果までスキップ
+
+function sleep(ms) {
+  let t = (typeof UI_FAST !== 'undefined' && UI_FAST) ? 0 : ms;
+  if (speedMode === 2) t = 0;
+  else if (speedMode === 1) t = Math.ceil(t * 0.2);
+  if (t === 0) return Promise.resolve();
+  return new Promise(r => setTimeout(r, t));
+}
+
+function newGame(memberKeys, handSize, jokerCount) {
+  lastMembers = memberKeys.slice();
+  lastHandSize = handSize || 5;
+  lastJokers = (jokerCount === undefined) ? 0 : jokerCount;
+  speedMode = 0;
+  const human = { idx: 0, name: 'あなた', emoji: '😎', color: '#22c55e', isHuman: true,
+                  hand: [], reach: false, reachShown: false, rank: null, chara: null, turnsTaken: 0 };
+  if (typeof TEST_AUTOPLAY !== 'undefined' && TEST_AUTOPLAY) {
+    human.isHuman = false;
+    human.chara = { key: 'test', name: 'あなた', level: 2, levelName: '', donMiss: 0, drawWhim: 0, quips: {} };
+  }
+  const players = [human];
+  memberKeys.forEach((k, i) => {
+    const ch = CHARACTERS.find(c => c.key === k);
+    players.push({ idx: i + 1, name: ch.name, emoji: ch.emoji, color: ch.color, isHuman: false,
+                   hand: [], reach: false, reachShown: false, rank: null, chara: ch, turnsTaken: 0 });
+  });
+  const deck = shuffle(buildDeck(lastJokers));
+  for (let i = 0; i < lastHandSize; i++) players.forEach(p => p.hand.push(deck.pop()));
+  const flip = deck.pop();
+  state = {
+    players, deck,
+    discard: [flip],
+    fieldRank: flip.joker ? 0 : flip.rank, // 初期場札の特殊効果は発動しない
+    declaredSuit: null,
+    dir: 1, turn: Math.floor(Math.random() * players.length),
+    skip: 0, stack: 0, donCount: 0,
+    totalCards: 52 + lastJokers,
+    hikiTargetIdx: null, // 引きドンの対象（直前にカードを出した人。パスが挟まると消える）
+    finished: 0, over: false,
+  };
+  players.forEach(p => announceReach(p)); // 配られた時点でのリーチ
+  return gameLoop();
+}
+
+function activeCount() { return state.players.filter(p => !p.rank).length; }
+function cur() { return state.players[state.turn]; }
+
+async function gameLoop() {
+  renderAll();
+  await gameStartFx();
+  while (!state.over) {
+    while (activeCount() > 1 && !state.over) {
+      const p = cur();
+      if (!p.rank) await runTurn(p);
+      if (activeCount() <= 1) break;
+      advanceTurn();
+      renderAll();
+    }
+    if (state.over) break;
+    if (!(await lastChance())) break; // 最後の1人にも引きドンチャンス（成立したらゲーム続行）
+  }
+  await endGame();
+}
+
+async function runTurn(p) {
+  p.turnsTaken++;
+  renderAll();
+  await sleep(p.isHuman ? 200 : 650);
+  let played = false;
+
+  // --- スタック精算フェーズ ---
+  if (state.stack > 0) {
+    const act = p.isHuman ? await uiStackChoice(p) : cpuStack(p, state);
+    if (act.play) {
+      await resolvePlay(p, act, { stack: true });
+      played = true;
+    } else {
+      const n = state.stack;
+      state.stack = 0;
+      await flyDraw(p, n);
+      const before = p.hand.length;
+      drawCards(p, n);
+      if (p.isHuman && p.hand.length > before) markNewCards(p.hand.slice(before).map(c => c.id));
+      toast(p.name + 'は' + n + '枚引いた！');
+      if (p.hand.length > 10) maybeBubble(p, 'bighand', true);
+      else if (n >= 4) maybeBubble(p, 'bigdraw', true);
+      updateReach(p);
+      renderAll();
+      await sleep(p.isHuman ? 200 : 500);
+    }
+  }
+
+  // --- 通常フェーズ ---
+  if (!played) {
+    let drawn = false;
+    let act = p.isHuman ? await uiTurnChoice(p, { drawn })
+                        : (await sleep(500), cpuTurn(p, state, { afterDraw: false }));
+    if (act.draw) {
+      // 引きドン：引く前の手札では一致していないことが条件（後出しドンの防止）
+      const hikiRank = (state.hikiTargetIdx !== null &&
+                        state.hikiTargetIdx !== p.idx && state.fieldRank > 0) ? state.fieldRank : 0;
+      const hikiBefore = hikiRank > 0 && canDonHand(p.hand, hikiRank);
+      await flyDraw(p, 1);
+      const before = p.hand.length;
+      drawCards(p, 1);
+      if (p.isHuman && p.hand.length > before) markNewCards([p.hand[p.hand.length - 1].id]);
+      drawn = true;
+      if (!p.isHuman) toast(p.name + 'は1枚引いた');
+      updateReach(p);
+      renderAll();
+      // 引いたカードで合計がピッタリになったら「引きドン」
+      if (hikiRank > 0 && !hikiBefore && canDonHand(p.hand, hikiRank)) {
+        const target = state.players[state.hikiTargetIdx];
+        await sleep(900); // 引いたカードをちゃんと見せてからボタンを出す
+        const yes = p.isHuman ? await uiHikiPrompt(hikiRank, target) : cpuDon(p);
+        if (yes) {
+          await resolveHikiDon(p, target);
+          return;
+        }
+      }
+      act = p.isHuman ? await uiTurnChoice(p, { drawn })
+                      : (await sleep(500), cpuTurn(p, state, { afterDraw: true }));
+    }
+    if (act.play) {
+      await resolvePlay(p, act, {});
+      played = true;
+    } else {
+      toast(p.name + 'はパス');
+      state.hikiTargetIdx = null; // パスが挟まったので引きドンの対象は消える
+      await passFx(p);
+    }
+  }
+  // 手番終了時点の最終状態でリーチ/解除を宣言
+  announceReach(p);
+  renderAll();
+}
+
+// 最後の1人に残された引きドンチャンス：直前の上がりに対して、運命の1枚を引いて逆転を狙える。
+// 外れたら手札が1枚増える＝支払いが増えるギャンブル
+async function lastChance() {
+  const last = state.players.find(q => !q.rank);
+  if (!last || state.over) return false;
+  if (state.hikiTargetIdx === null || state.hikiTargetIdx === last.idx) return false;
+  if (state.fieldRank <= 0) return false;
+  if (!canDrawFromDeck(state)) return false;
+  if (canDonHand(last.hand, state.fieldRank)) return false; // 引く前に一致→通常ドンの後出し禁止
+  const r = reachOf(last.hand);
+  if (state.fieldRank <= r.min) return false; // 引いても合計は増える一方＝一致し得ない
+  const target = state.players[state.hikiTargetIdx];
+  renderAll();
+  const gamble = last.isHuman ? await uiLastDrawPrompt(state.fieldRank, target)
+                              : (await sleep(800), true);
+  if (!gamble) return false;
+  if (!last.isHuman) toast(last.name + 'は運命の1枚を引く…！');
+  await flyDraw(last, 1);
+  const before = last.hand.length;
+  drawCards(last, 1);
+  if (last.isHuman && last.hand.length > before) markNewCards([last.hand[last.hand.length - 1].id]);
+  updateReach(last);
+  renderAll();
+  await sleep(900); // 引いたカードをちゃんと見せる
+  if (!canDonHand(last.hand, state.fieldRank)) {
+    toast('……届かなかった');
+    await sleep(700);
+    return false;
+  }
+  const yes = last.isHuman ? await uiHikiPrompt(state.fieldRank, target) : cpuDon(last);
+  if (!yes) return false;
+  await resolveHikiDon(last, target);
+  return true;
+}
+
+// 引きドン：引いたカードで合計一致→直前にカードを出した人に全手札を押しつけて勝ち抜け。
+// 相手が上がった直後でも成立し、その場合はゲームに連れ戻す
+async function resolveHikiDon(p, target) {
+  state.donCount++;
+  const wasOut = !!target.rank;
+  await donFx([p], target, true); // 全画面演出は「引きドン！！」表示
+  if (target.isHuman) markNewCards(p.hand.map(c => c.id));
+  if (wasOut) {
+    state.finished--;
+    target.rank = null;
+    await cutIn(target.name + '　ゲームに逆戻り！！', 'fx-stack');
+  }
+  target.hand.push(...p.hand);
+  p.hand = [];
+  p.reach = false;
+  finishPlayer(p, true);
+  state.stack = 0;
+  updateReach(target);
+  renderAll();
+  if (activeCount() <= 1) return;
+  // ドンされた人は自分の場札の上に続けて出す
+  toast(target.name + 'は続けてカードを出す！');
+  await donRedo(target);
+  announceReach(target);
+  renderAll();
+}
+
+// カードを出す → ドン判定 → 上がり判定 → 効果適用
+async function resolvePlay(p, act, opts) {
+  const info = setInfo(act.cards);
+  const noFx = p.turnsTaken <= 1; // 1周目ルール：各プレイヤー最初の手番は効果なし
+  // 上がり宣言：最後の手札を出すときは、出す前にセリフを言う（この後ドンで阻止されるかもしれない）
+  if (act.cards.length === p.hand.length) {
+    sayFx(p, p.chara && p.chara.quips.winpre ? p.chara.quips.winpre : 'これで上がり！！', 'say-win-big', 1400);
+    await sleep(1350);
+  }
+  const ordered = arrangeSet(act.cards, act.top, state, noFx);
+  p.hand = p.hand.filter(c => !act.cards.some(y => y.id === c.id));
+  state.discard.push(...ordered);
+  state.fieldRank = info.soloJoker ? 0 : info.rank;
+  state.declaredSuit = null;
+  state.hikiTargetIdx = p.idx; // 最後にカードを出した人（引きドンの対象）
+
+  const labels = ordered.map(cardLabel).join(' ');
+  toast(p.name + '： ' + labels + ' を出した！');
+  // 状況に応じた台詞（優先順）：初手の挨拶＞スタック上乗せ＞ジョーカー＞一周フリー＞煽り/警戒/通常
+  if (!p.playedOnce) {
+    p.playedOnce = true;
+    maybeBubble(p, 'hello', true);
+  } else if (opts.stack) {
+    maybeBubble(p, 'stackon', true);
+  } else if (info.soloJoker) {
+    maybeBubble(p, 'joker', true);
+  } else if (info.rank === 2 && !noFx && p.hand.length > 0) {
+    maybeBubble(p, 'two', true);
+  } else {
+    const someoneLast = state.players.some(q => q !== p && !q.rank && q.hand.length === 1);
+    const someoneReach = state.players.some(q => q !== p && !q.rank && q.reachShown);
+    maybeBubble(p, someoneLast ? 'taunt' : someoneReach ? 'wary' : 'play');
+  }
+  await flyCards(p, ordered); // 出した人→場へカードが飛ぶ
+  updateReach(p); // リーチ/解除の宣言は手番終了時にまとめて行う
+  renderAll();
+  await sleep(200);
+
+  // --- ドン判定（単独ジョーカーは対象外） ---
+  let donners = [];
+  if (!info.soloJoker) donners = await collectDons(p, info.rank);
+  if (donners.length) {
+    state.donCount += donners.length;
+    await donFx(donners, p);
+    if (p.isHuman) markNewCards(donners.reduce((a, q) => a.concat(q.hand.map(c => c.id)), []));
+    for (const q of donners) {
+      p.hand.push(...q.hand);
+      q.hand = [];
+      q.reach = false;
+      finishPlayer(q, true); // ドン勝ち抜けは既にセリフ済みなので静かに
+    }
+    state.stack = 0; // スキップ・ドロー・リバースの効果は消滅
+    state.declaredSuit = null;
+    updateReach(p);
+    renderAll();
+    if (p.hand.length > 10) maybeBubble(p, 'bighand', true);
+    if (activeCount() <= 1) return;
+    // 8・ジョーカーのスート宣言だけはドンでも消えない：手札を受け取ってから宣言する
+    const declares = noFx ? (info.soloJoker || act.top.joker) : (info.rank === 8 || act.top.joker);
+    if (declares) {
+      const suit = p.isHuman ? await uiPickSuit() : (await sleep(500), cpuSuit(p));
+      state.declaredSuit = suit;
+      maybeBubble(p, 'suit8', true);
+      await cutIn(SUIT_CHAR[suit] + ' ' + SUIT_NAME[suit] + 'を宣言！', 'fx-suit');
+      renderAll();
+    }
+    // ドンされた人は自分の場札の上に続けて出す（通常手番と同じ扱い）
+    toast(p.name + 'は続けてカードを出す！');
+    await donRedo(p);
+    return;
+  }
+
+  // --- 上がり（特殊効果は発動しない・スタックも消える） ---
+  if (p.hand.length === 0) {
+    state.stack = 0;
+    finishPlayer(p);
+    renderAll();
+    return;
+  }
+
+  // --- 特殊効果 ---
+  const n = act.cards.length;
+  if (noFx) {
+    if ([1, 2, 8, 9].includes(info.rank) || info.soloJoker) toast('1周目はカードの効果なし！');
+    if (info.soloJoker || act.top.joker) {
+      // ジョーカーだけは+4なしでスート宣言のみできる
+      const suit = p.isHuman ? await uiPickSuit() : (await sleep(400), cpuSuit(p));
+      state.declaredSuit = suit;
+      maybeBubble(p, 'suit8', true);
+      await cutIn(SUIT_CHAR[suit] + ' ' + SUIT_NAME[suit] + 'を宣言！', 'fx-suit');
+    }
+  } else {
+    if (info.rank === 2) {
+      state.stack += 2 * n;
+      await cutIn('ドロー +' + state.stack + '！', 'fx-stack');
+    } else if (info.soloJoker) {
+      state.stack += 4;
+      await cutIn('ジョーカー！ +' + state.stack + '！', 'fx-stack');
+    } else if (info.rank === 1) {
+      // n枚のAは「1人飛ばし」をn回くり返す＝1人おきに飛ぶ（2枚なら2つ先の2つ先へ）
+      state.skip += 2 * n - 1;
+      await cutIn('スキップ' + (n > 1 ? '×' + n : '') + '！', 'fx-skip');
+    } else if (info.rank === 9) {
+      if (activeCount() > 2 && n % 2 === 1) {
+        state.dir *= -1;
+        await cutIn('リバース！', 'fx-skip');
+      }
+    }
+    if (info.rank === 8 || act.top.joker) {
+      const suit = p.isHuman ? await uiPickSuit() : (await sleep(400), cpuSuit(p));
+      state.declaredSuit = suit;
+      maybeBubble(p, 'suit8', true);
+      await cutIn(SUIT_CHAR[suit] + ' ' + SUIT_NAME[suit] + 'を宣言！', 'fx-suit');
+    }
+  }
+  renderAll();
+}
+
+// ドンされた人の続行手番（通常手番と同じ：出す or 1枚引いて出す/パス）
+async function donRedo(p) {
+  renderAll();
+  await sleep(600);
+  let drawn = false;
+  let act = p.isHuman ? await uiTurnChoice(p, { free: false, drawn, redo: true })
+                      : cpuTurn(p, state, { free: false, afterDraw: false });
+  if (act.draw) {
+    await flyDraw(p, 1);
+    const before = p.hand.length;
+    drawCards(p, 1);
+    if (p.isHuman && p.hand.length > before) markNewCards([p.hand[p.hand.length - 1].id]);
+    drawn = true;
+    if (!p.isHuman) toast(p.name + 'は1枚引いた');
+    updateReach(p);
+    renderAll();
+    act = p.isHuman ? await uiTurnChoice(p, { free: false, drawn, redo: true })
+                    : (await sleep(500), cpuTurn(p, state, { free: false, afterDraw: true }));
+  }
+  if (act.play) await resolvePlay(p, act, {});
+  else {
+    toast(p.name + 'はパス');
+    state.hikiTargetIdx = null; // パス扱い：引きドンの対象は消える
+    await passFx(p);
+  }
+}
+
+// ドン候補を集める（人間の判断が先、その後CPU。優先順位は出した人から進行方向順）
+async function collectDons(p, rank) {
+  const cands = state.players.filter(q => q !== p && !q.rank && canDon(q, rank));
+  if (!cands.length) return [];
+  const donners = [];
+  const human = cands.find(q => q.isHuman);
+  let humanYes = false;
+  if (human) humanYes = await uiDonPrompt(rank, reachOf(human.hand));
+  for (const q of cands) {
+    if (q.isHuman) { if (humanYes) donners.push(q); }
+    else if (cpuDon(q)) { donners.push(q); }
+  }
+  // 出した人を起点に進行方向で順位付け
+  donners.sort((a, b) => seatDist(p.idx, a.idx) - seatDist(p.idx, b.idx));
+  return donners;
+}
+
+function seatDist(fromIdx, toIdx) {
+  const N = state.players.length;
+  let d = (toIdx - fromIdx) * state.dir;
+  return ((d % N) + N) % N;
+}
+
+function advanceTurn() {
+  const N = state.players.length;
+  let steps = 1 + state.skip;
+  state.skip = 0;
+  let i = state.turn;
+  while (steps > 0) {
+    i = (i + state.dir + N) % N;
+    if (!state.players[i].rank) steps--;
+  }
+  state.turn = i;
+}
+
+function drawCards(p, n) {
+  for (let i = 0; i < n; i++) {
+    if (!state.deck.length && !refillDeck()) break; // 引ける分だけ引く
+    p.hand.push(state.deck.pop());
+  }
+}
+
+function refillDeck() {
+  if (state.discard.length <= 1) return false;
+  const top = state.discard.pop();
+  state.deck = shuffle(state.discard);
+  state.discard = [top];
+  return true;
+}
+
+// リーチ状態の更新（内部状態のみ・宣言はしない）
+function updateReach(p) {
+  if (p.rank) { p.reach = false; return; }
+  p.reach = reachOf(p.hand).reach;
+}
+
+// 手番終了時に最終状態だけを宣言する（途中の一瞬のリーチ/解除は宣言しない）
+function announceReach(p) {
+  updateReach(p);
+  // 手札1枚は「リーチ解除」ではなく「ラスト1枚！」宣言（リーチ経由でなくても宣言する）
+  const lastNow = !p.rank && p.hand.length === 1;
+  if (lastNow) {
+    if (p.reachShown) p.reachShown = false; // リーチバッジは静かに下ろす
+    if (!p.lastShown) {
+      p.lastShown = true;
+      sayFx(p, p.chara && p.chara.quips.last ? p.chara.quips.last : 'ラスト1枚！！', 'say-last', 1300);
+    }
+    return;
+  }
+  p.lastShown = false;
+  if (p.reach === p.reachShown) return;
+  p.reachShown = p.reach;
+  if (p.reach) {
+    sndReach();
+    sayFx(p, p.chara && p.chara.quips.reach ? p.chara.quips.reach : 'リーチ！！', 'say-reach', 1300);
+  } else if (!p.rank && p.hand.length > 0) {
+    sayFx(p, p.chara && p.chara.quips.unreach ? p.chara.quips.unreach : 'リーチ解除…', 'say-unreach', 1100);
+  }
+}
+
+function finishPlayer(p, quiet) {
+  p.rank = ++state.finished;
+  p.reach = false;
+  p.reachShown = false;
+  if (!quiet) sayFx(p, p.chara && p.chara.quips.win ? p.chara.quips.win : '上がり！！', 'say-win-big', 1500);
+  cutIn(p.name + '　' + p.rank + '位で勝ち抜け！', 'fx-win');
+  // 残り2人になった瞬間、一騎打ちのセリフ（左側の人から時間差で・かぶらないように）
+  if (activeCount() === 2) {
+    const duo = state.players.filter(q => !q.rank);
+    duo.forEach((q, i) => setTimeout(() => maybeBubble(q, 'duel', true), i * 1800));
+  }
+}
+
+async function endGame() {
+  state.over = true;
+  const loser = state.players.find(p => !p.rank);
+  loser.rank = state.players.length;
+  const first = state.players.find(p => p.rank === 1);
+  const cards = loser.hand.length;
+  const mult = state.donCount + 1;
+  const pts = cards * 10 * mult;
+  const totals = loadTotals();
+  state.players.forEach(p => { if (!(p.name in totals)) totals[p.name] = 0; });
+  totals[first.name] += pts;
+  totals[loser.name] -= pts;
+  saveTotals(totals);
+  await resultFx(); // 自分の順位に応じたリザルト前演出
+  showResult({ first, loser, cards, mult, pts, donCount: state.donCount, totals });
+}
+
+// ===== 通算スコア（localStorage） =====
+function loadTotals() {
+  try { return JSON.parse(localStorage.getItem('take2_total')) || {}; } catch (e) { return {}; }
+}
+function saveTotals(t) {
+  try { localStorage.setItem('take2_total', JSON.stringify(t)); } catch (e) {}
+}
+function resetTotals() {
+  try { localStorage.removeItem('take2_total'); } catch (e) {}
+}
+function loadMembers() {
+  try { return JSON.parse(localStorage.getItem('take2_members')) || []; } catch (e) { return []; }
+}
+function saveMembers(m) {
+  try { localStorage.setItem('take2_members', JSON.stringify(m)); } catch (e) {}
+}
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('take2_settings')) || {};
+    return {
+      players: [4, 5, 6].includes(s.players) ? s.players : 5,
+      hand: [4, 5, 6].includes(s.hand) ? s.hand : 5,
+      jokers: [0, 1, 2].includes(s.jokers) ? s.jokers : 0,
+    };
+  } catch (e) { return { players: 5, hand: 5, jokers: 0 }; }
+}
+function saveSettings(s) {
+  try { localStorage.setItem('take2_settings', JSON.stringify(s)); } catch (e) {}
+}
+</script>
+
+<script>
+// ===== UI・演出 =====
+function el(id) { return document.getElementById(id); }
+
+// ---- 人間の入力待ち ----
+const ui = { mode: null, opts: null, sel: new Set(), resolve: null, player: null, newIds: new Set() };
+
+// ドンで受け取った/引いてきたカードにNEWマークを付ける（次に出す/パスするまで表示・追記式）
+function markNewCards(ids) { ids.forEach(id => ui.newIds.add(id)); renderAll(); }
+
+function waitInput(mode, p, opts) {
+  ui.mode = mode; ui.player = p; ui.opts = opts || {}; ui.sel.clear();
+  renderAll();
+  return new Promise(r => { ui.resolve = r; });
+}
+function submitInput(v) {
+  const r = ui.resolve;
+  ui.mode = null; ui.resolve = null; ui.sel.clear(); ui.opts = null;
+  if (v && (v.play || v.pass)) ui.newIds.clear();
+  renderAll();
+  if (r) r(v);
+}
+function uiTurnChoice(p, opts) { return waitInput('turn', p, opts); }
+function uiStackChoice(p) { return waitInput('stack', p, {}); }
+
+function onCardTap(id) {
+  if (!ui.mode) return;
+  if (ui.sel.has(id)) ui.sel.delete(id); else ui.sel.add(id);
+  renderAll();
+}
+
+function onPlayClick() {
+  const cards = [...ui.sel].map(id => ui.player.hand.find(c => c.id === id)).filter(Boolean);
+  const v = validatePlay(cards, ui.player.hand, state,
+    { stack: ui.mode === 'stack', lap1: ui.player.turnsTaken <= 1 });
+  if (!v.ok) { setHint(v.msg); return; }
+  if (cards.length === 1) { submitInput({ play: true, cards, top: cards[0] }); return; }
+  // 一番上にできるカードが1択なら選択画面を出さない（例：2枚出しで片方が接続カードのとき）
+  if (v.tops.length === 1) { submitInput({ play: true, cards, top: v.tops[0] }); return; }
+  uiPickTop(cards, v.tops).then(top => { if (top) submitInput({ play: true, cards, top }); });
+}
+function onDrawClick() { submitInput({ draw: true }); }
+function onPassClick() { submitInput({ pass: true }); }
+function onStackDrawClick() { submitInput({ draw: true }); }
+
+// ---- オーバーレイ ----
+// top=true で画面上部に表示＆背景を薄くする（手札を見ながら選べる）
+function showOverlay(html, top) {
+  el('overlay-box').innerHTML = html;
+  el('overlay').classList.toggle('overlay-top', !!top);
+  el('overlay').classList.remove('hidden');
+}
+function hideOverlay() {
+  el('overlay').classList.add('hidden');
+  el('overlay').classList.remove('overlay-top');
+}
+
+function uiPickTop(cards, tops) {
+  return new Promise(res => {
+    const btns = tops.map(c =>
+      `<button class="card pickable ${cardCls(c)}" data-id="${c.id}">${cardFace(c)}</button>`).join('');
+    showOverlay(`<h3>一番上にするカードを選ぶ</h3>
+      <p class="ov-note">次の人はこのカードに続きます</p>
+      <div class="ov-cards">${btns}</div>
+      <button class="btn btn-mini" id="ov-cancel">キャンセル</button>`, true);
+    el('overlay-box').querySelectorAll('.pickable').forEach(b => {
+      b.onclick = () => { hideOverlay(); res(cards.find(c => c.id === Number(b.dataset.id))); };
+    });
+    el('ov-cancel').onclick = () => { hideOverlay(); res(null); };
+  });
+}
+
+function uiPickSuit() {
+  return new Promise(res => {
+    const btns = SUITS.map(s =>
+      `<button class="suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}" data-s="${s}">${SUIT_CHAR[s]}</button>`).join('');
+    showOverlay(`<h3>好きなマークを宣言！</h3><p class="ov-note">↓手札を見ながら選べます</p><div class="ov-suits">${btns}</div>`, true);
+    el('overlay-box').querySelectorAll('.suit-btn').forEach(b => {
+      b.onclick = () => { hideOverlay(); res(b.dataset.s); };
+    });
+  });
+}
+
+function uiHikiPrompt(rank, target) {
+  return new Promise(res => {
+    sndReach();
+    showOverlay(`<div class="don-chance">引きドンチャンス！！</div>
+      <p>引いたカードで手札合計がピッタリ一致！<br>${target.name}の「<b>${rankLabel(rank)}</b>」に遅れてドンできる！${target.rank ? '<br><b>（上がりを取り消して連れ戻す！）</b>' : ''}</p>
+      <button class="btn btn-don" id="ov-don">引きドン！！</button>
+      <button class="btn btn-mini" id="ov-through">スルー…</button>`, true);
+    el('ov-don').onclick = () => { hideOverlay(); res(true); };
+    el('ov-through').onclick = () => { hideOverlay(); res(false); };
+  });
+}
+
+// 最後の1人のラストチャンス：引くかどうかの決断
+function uiLastDrawPrompt(rank, target) {
+  return new Promise(res => {
+    showOverlay(`<h3>最後の引きドンチャンス！？</h3>
+      <p>1枚引いて手札合計が「<b>${rankLabel(rank)}</b>」になれば、<br>${target.name}の上がりを取り消して大逆転できる！</p>
+      <p class="ov-note">※外れたら手札が1枚増えて、支払いも増える…</p>
+      <button class="btn btn-don" id="ov-draw">運命の1枚を引く！</button>
+      <button class="btn btn-mini" id="ov-nodraw">引かない…</button>`, true);
+    el('ov-draw').onclick = () => { hideOverlay(); res(true); };
+    el('ov-nodraw').onclick = () => { hideOverlay(); res(false); };
+  });
+}
+
+function uiDonPrompt(rank, range) {
+  return new Promise(res => {
+    sndReach();
+    showOverlay(`<div class="don-chance">ドンチャンス！！</div>
+      <p>場に出た「<b>${rankLabel(rank)}</b>」があなたの手札合計とピッタリ一致！</p>
+      <button class="btn btn-don" id="ov-don">ドン！！</button>
+      <button class="btn btn-mini" id="ov-through">スルー…</button>`);
+    el('ov-don').onclick = () => { hideOverlay(); res(true); };
+    el('ov-through').onclick = () => { hideOverlay(); res(false); };
+  });
+}
+
+// ---- カットイン・トースト・吹き出し ----
+function toggleFast() { speedMode = speedMode === 1 ? 0 : 1; renderAll(); }
+function skipToEnd() { speedMode = 2; renderAll(); }
+function openRules() { el('rules-overlay').classList.remove('hidden'); }
+function closeRules() { el('rules-overlay').classList.add('hidden'); }
+
+const cutQ = [];
+let cutBusy = false;
+function cutIn(text, cls) {
+  if (speedMode === 2) return Promise.resolve();
+  return new Promise(res => { cutQ.push({ text, cls, res }); pumpCut(); });
+}
+async function pumpCut() {
+  if (cutBusy) return;
+  cutBusy = true;
+  while (cutQ.length) {
+    const c = cutQ.shift();
+    const e = el('cutin');
+    e.textContent = c.text;
+    e.className = 'show ' + (c.cls || '');
+    await sleep(900);
+    e.className = 'hidden';
+    await sleep(120);
+    c.res();
+  }
+  cutBusy = false;
+}
+
+let toastTimer = null;
+function toast(t) {
+  const e = el('toast');
+  if (!e) return;
+  e.textContent = t;
+  e.classList.remove('off');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => e.classList.add('off'), 2400);
+}
+
+function maybeBubble(p, kind, force) {
+  if (!p.chara || !p.chara.quips || !p.chara.quips[kind]) return;
+  if (!force && Math.random() > 0.25) return;
+  sayFx(p, p.chara.quips[kind], 'say-quip', 1700);
+}
+
+async function gameStartFx() {
+  await cutIn('ゲームスタート！', 'fx-start');
+}
+
+// ---- カードを出すアニメーション（出した人→場へ飛ぶ） ----
+async function flyCards(p, ordered) {
+  if (speedMode === 2) return;
+  const src = p.isHuman ? el('hand') : document.querySelector(`[data-pidx="${p.idx}"]`);
+  const dst = el('field-pile');
+  if (!src || !dst) return;
+  const s = src.getBoundingClientRect(), d = dst.getBoundingClientRect();
+  const startX = s.left + s.width / 2 - 28, startY = s.top + s.height / 2 - 40;
+  const endX = d.left + d.width / 2 - 28, endY = d.top + 51 - 40;
+  const clones = [];
+  ordered.forEach((c, i) => {
+    const fly = document.createElement('div');
+    fly.className = `card fly ${cardCls(c)}`;
+    fly.innerHTML = cardFace(c);
+    fly.style.left = startX + 'px';
+    fly.style.top = startY + 'px';
+    document.body.appendChild(fly);
+    clones.push(fly);
+    setTimeout(() => {
+      fly.style.transform = `translate(${endX - startX}px, ${endY - startY}px) scale(1.28)`;
+    }, 30 + i * 90);
+  });
+  if (!p.isHuman) {
+    src.classList.add('played');
+    setTimeout(() => src.classList.remove('played'), 550);
+  }
+  await sleep(460 + (ordered.length - 1) * 90);
+  clones.forEach(f => f.remove());
+}
+
+// ---- 山札からドローするアニメーション（山札→引いた人へ） ----
+async function flyDraw(p, n) {
+  if (speedMode === 2 || n <= 0) return;
+  const src = el('deck-pile');
+  const dst = p.isHuman ? el('hand') : document.querySelector(`[data-pidx="${p.idx}"]`);
+  if (!src || !dst) return;
+  const s = src.getBoundingClientRect(), d = dst.getBoundingClientRect();
+  const sx = s.left + s.width / 2 - 14, sy = s.top + s.height / 2 - 20;
+  const dx = d.left + d.width / 2 - 14, dy = d.top + d.height / 2 - 20;
+  const clones = [];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div');
+    b.className = 'card back fly-don';
+    b.style.left = sx + 'px';
+    b.style.top = sy + 'px';
+    document.body.appendChild(b);
+    clones.push(b);
+    setTimeout(() => {
+      const jx = (Math.random() - 0.5) * 18, jy = (Math.random() - 0.5) * 12;
+      b.style.transform = `translate(${dx - sx + jx}px, ${dy - sy + jy}px) rotate(${(Math.random() - 0.5) * 30}deg)`;
+    }, 30 + i * 70);
+  }
+  await sleep(430 + n * 70);
+  clones.forEach(c => c.remove());
+}
+
+// ---- ドン演出（最大の見せ場）。hiki=true なら「引きドン！！」表示 ----
+async function donFx(donners, p, hiki) {
+  if (speedMode === 2) return;
+  // 二段階のタメ：ニヤリ系のつぶやき → デカ文字の決めゼリフ → 爆発
+  // 上がりの一手を阻止するドンなら専用の決めゼリフ
+  const blocking = p.hand.length === 0;
+  const talkers = donners.filter(q => q.chara);
+  if (talkers.length) {
+    talkers.forEach(q => sayFx(q, q.chara.quips.donpre || '……！', 'say-quip', 1300));
+    await sleep(1250);
+    talkers.forEach(q => sayFx(q,
+      (blocking && q.chara.quips.donblock) ? q.chara.quips.donblock : q.chara.quips.don,
+      'say-don-big', 1500));
+    await sleep(1400);
+  }
+  sndDon();
+  thump();
+  const fx = el('don-fx');
+  const donLabel = hiki ? '引きドン！！' : (donners.length > 1 ? 'ダブルドン！！！' : 'ドン！！');
+  const sizeCls = donners.length > 1 ? ' long' : (hiki ? ' mid' : '');
+  fx.innerHTML = `
+    <div class="don-who">${donners.map(q => `<span class="don-avatar" style="background:${q.color}">${q.emoji}</span>`).join('')}</div>
+    <div class="don-who-names">${donners.map(q => q.name).join(' と ')}</div>
+    <div class="don-text${sizeCls}">${donLabel}</div>`;
+  fx.classList.remove('hidden');
+  confettiBurst(); // ドン勝ち抜けは紙吹雪でお祝い
+  await sleep(1300);
+  fx.innerHTML += `<div class="don-sub">手札をぜんぶ ${p.emoji}${p.name} に押しつけた！</div>`;
+  await sleep(1200);
+  fx.classList.add('hidden');
+  fx.innerHTML = '';
+  // ドンされた側の悲鳴：ひと呼吸置いて見せてから、カードが飛んでくる
+  sayFx(p, p.chara && p.chara.quips.donned ? p.chara.quips.donned : 'うそだろ！？', 'say-quip', 2000);
+  await sleep(950);
+  // 盤面が見える状態で、誰から誰へ何枚移動したかをアニメーション
+  const got = donners.reduce((a, q) => a.concat(q.hand), []);
+  for (const q of donners) {
+    await flyDonCards(q, p, q.hand.length);
+  }
+  // 自分が受け取ったときは内訳をじっくり確認できる
+  if (p.isHuman) await showDonReceived(got);
+}
+
+// 発言吹き出し：話した人の頭上にしっぽ付きの吹き出しが出る（パス/リーチ/解除/上がり/セリフ共通）
+function sayFx(p, text, cls, ms) {
+  if (speedMode === 2) return Promise.resolve();
+  const src = p.isHuman ? el('my-head') : document.querySelector(`[data-pidx="${p.idx}"]`);
+  if (!src) return Promise.resolve();
+  const anchor = src.querySelector('.avatar') || src;
+  const ar = anchor.getBoundingClientRect();
+  const cx = ar.left + ar.width / 2; // 話者の中心（しっぽが指す位置）
+  const below = !p.isHuman; // CPUはパネルの下・自分は頭上に表示
+  const lab = document.createElement('div');
+  lab.className = 'say-label ' + (cls || '');
+  lab.style.animationDuration = (ms || 1000) + 'ms'; // 表示時間と演出の長さを一致させる
+  lab.textContent = text;
+  document.body.appendChild(lab);
+  // 改行指定（\n）があるセリフは指定位置で折り返す
+  if (text.indexOf('\n') >= 0) {
+    lab.style.whiteSpace = 'pre-line';
+    lab.style.textAlign = 'center';
+  }
+  // 長台詞は画面幅を超えるので折り返す
+  if (lab.offsetWidth > window.innerWidth - 12) {
+    lab.style.whiteSpace = 'normal';
+    lab.style.maxWidth = (window.innerWidth - 12) + 'px';
+    lab.style.textAlign = 'center';
+  }
+  // offsetWidth/Height は登場アニメの縮小transformの影響を受けない実寸
+  const w = lab.offsetWidth, h = lab.offsetHeight;
+  const left = Math.min(Math.max(cx - w / 2, 6), window.innerWidth - w - 6);
+  lab.style.left = left + 'px';
+  const sr = src.getBoundingClientRect();
+  lab.style.top = below
+    ? Math.min(ar.bottom + 5, window.innerHeight - h - 6) + 'px' // アイコンの直下から出す
+    : Math.max(sr.top - h - 10, 6) + 'px';
+  lab.style.transformOrigin = below ? 'top center' : 'bottom center';
+  const tail = document.createElement('div');
+  tail.className = 'say-tail' + (below ? ' up' : '');
+  tail.style.left = Math.min(Math.max(cx - left, 12), w - 12) + 'px';
+  lab.appendChild(tail);
+  return sleep(ms || 1000).then(() => lab.remove());
+}
+
+async function passFx(p) {
+  await sayFx(p, p.chara && p.chara.quips.pass ? p.chara.quips.pass : 'パス…', 'say-pass', 850);
+}
+
+// 紙吹雪（ドン勝ち抜け専用のお祝い）
+function confettiBurst() {
+  if (speedMode === 2) return;
+  const colors = ['#f43f5e', '#f59e0b', '#22c55e', '#38bdf8', '#a78bfa', '#fde047'];
+  for (let i = 0; i < 46; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = (4 + Math.random() * 92) + 'vw';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDelay = (Math.random() * 0.4) + 's';
+    c.style.animationDuration = (1.1 + Math.random() * 0.9) + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 2800);
+  }
+}
+
+// リザルト前の演出：自分の順位に合わせて変わる
+async function resultFx() {
+  if (speedMode === 2) return;
+  const me = state.players[0];
+  const lastRank = state.players.length;
+  const fx = el('don-fx');
+  let cls, inner;
+  if (me.rank === 1) {
+    cls = 'glory';
+    inner = `<div class="loser-skull">🏆</div><div class="rank-name">あなたの優勝！！</div>`;
+    confettiBurst();
+  } else if (me.rank === lastRank) {
+    cls = 'gloom';
+    inner = `<div class="loser-skull">💀</div><div class="loser-name">あなたの負け…</div>`;
+  } else {
+    cls = 'gloom-mid';
+    const medal = me.rank === 2 ? '🥈' : me.rank === 3 ? '🥉' : '🎖️';
+    inner = `<div class="loser-skull">${medal}</div><div class="rank-name">あなたは${me.rank}位！</div>`;
+  }
+  fx.classList.add(cls);
+  fx.innerHTML = inner;
+  fx.classList.remove('hidden');
+  await sleep(2200);
+  fx.classList.add('hidden');
+  fx.classList.remove(cls);
+  fx.innerHTML = '';
+}
+
+function showDonReceived(got) {
+  return new Promise(res => {
+    const cardsHtml = got.map(c => `<div class="card ${cardCls(c)}">${cardFace(c)}</div>`).join('');
+    showOverlay(`<h3>ドンで受け取ったカード（${got.length}枚）</h3>
+      <div class="ov-cards got">${cardsHtml}</div>
+      <button class="btn btn-play" id="ov-got-ok">よし、見た！</button>`);
+    el('ov-got-ok').onclick = () => { hideOverlay(); res(); };
+  });
+}
+
+// ドンの手札移動アニメ（q→pへカード裏面がバサバサ飛ぶ＋枚数ラベル）
+async function flyDonCards(q, p, n) {
+  if (speedMode === 2 || n <= 0) return;
+  const src = q.isHuman ? el('hand') : document.querySelector(`[data-pidx="${q.idx}"]`);
+  const dst = p.isHuman ? el('hand') : document.querySelector(`[data-pidx="${p.idx}"]`);
+  if (!src || !dst) return;
+  const s = src.getBoundingClientRect(), d = dst.getBoundingClientRect();
+  const sx = s.left + s.width / 2 - 14, sy = s.top + s.height / 2 - 20;
+  const dx = d.left + d.width / 2 - 14, dy = d.top + d.height / 2 - 20;
+  const clones = [];
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('div');
+    b.className = 'card back fly-don';
+    b.style.left = sx + 'px';
+    b.style.top = sy + 'px';
+    document.body.appendChild(b);
+    clones.push(b);
+    setTimeout(() => {
+      const jx = (Math.random() - 0.5) * 26, jy = (Math.random() - 0.5) * 18;
+      b.style.transform = `translate(${dx - sx + jx}px, ${dy - sy + jy}px) rotate(${(Math.random() - 0.5) * 50}deg)`;
+    }, 40 + i * 55);
+  }
+  const lab = document.createElement('div');
+  lab.className = 'don-move-label';
+  lab.innerHTML = `${q.emoji}${q.name} → ${p.emoji}${p.name}　+${n}枚！`;
+  document.body.appendChild(lab);
+  lab.style.left = Math.min(Math.max(d.left + d.width / 2 - 90, 8), window.innerWidth - 190) + 'px';
+  lab.style.top = Math.max(d.top - 34, 8) + 'px';
+  await sleep(750 + n * 55);
+  clones.forEach(c => c.remove());
+  lab.remove();
+}
+
+function thump() {
+  try { if (navigator.vibrate) navigator.vibrate([90, 50, 140]); } catch (e) {}
+  el('app').classList.add('shake');
+  document.body.classList.add('flash');
+  setTimeout(() => { el('app').classList.remove('shake'); document.body.classList.remove('flash'); }, 750);
+}
+
+// ---- サウンド（Web Audio生成・外部ファイル不要） ----
+let actx = null;
+function audio() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  } catch (e) { return null; }
+}
+function sndDon() {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(180, t);
+  o.frequency.exponentialRampToValueAtTime(35, t + 0.35);
+  g.gain.setValueAtTime(1.1, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+  o.connect(g).connect(a.destination);
+  o.start(t); o.stop(t + 0.6);
+  const buf = a.createBuffer(1, a.sampleRate * 0.25, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+  const s = a.createBufferSource(); s.buffer = buf;
+  const g2 = a.createGain(); g2.gain.value = 0.5;
+  s.connect(g2).connect(a.destination);
+  s.start(t);
+}
+function sndReach() {
+  const a = audio(); if (!a) return;
+  [523, 659, 784].forEach((f, i) => {
+    const t = a.currentTime + i * 0.09;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.3, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    o.connect(g).connect(a.destination);
+    o.start(t); o.stop(t + 0.3);
+  });
+}
+
+// ---- 描画 ----
+function cardCls(c) { return c.joker ? 'joker' : (c.suit === 'H' || c.suit === 'D' ? 'red' : 'black'); }
+function cardFace(c) {
+  if (c.joker) return `<span class="jk">🃏</span><span class="jk-label">JOKER</span>`;
+  return `<span class="c-rank">${rankLabel(c.rank)}</span><span class="c-suit">${SUIT_CHAR[c.suit]}</span>`;
+}
+
+function sortedHand(hand) {
+  return hand.slice().sort((a, b) => {
+    if (a.joker !== b.joker) return a.joker ? 1 : -1;
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+  });
+}
+
+function renderAll() {
+  if (!state) return;
+  renderOpponents();
+  renderCenter();
+  renderMyArea();
+  // リーチ者がいる間は画面の縁が赤く脈打つ（緊張演出）
+  el('tension').classList.toggle('on',
+    !state.over && state.players.some(p => !p.rank && p.reachShown));
+}
+
+// 残り枚数をミニカードの束で表示（多いほどぎっしり重なる）
+function miniHand(n) {
+  if (n <= 0) return '<div class="mini-hand"></div>';
+  const availW = 88, cw = 12;
+  const ov = n > 1 ? Math.max(0, Math.min(cw - 3, (cw * n - availW) / (n - 1))) : 0;
+  const cls = n >= 8 ? 'many' : (n === 1 ? 'last' : '');
+  let h = '';
+  for (let i = 0; i < n; i++) {
+    h += `<span class="mini-back ${cls}" style="${i ? 'margin-left:-' + ov.toFixed(1) + 'px' : ''}"></span>`;
+  }
+  return `<div class="mini-hand">${h}</div>`;
+}
+
+function renderOpponents() {
+  const box = el('opponents');
+  box.style.gridTemplateColumns = 'repeat(' + Math.max(state.players.length - 1, 1) + ', 1fr)';
+  box.innerHTML = state.players.slice(1).map(p => {
+    const turn = state.turn === p.idx && !p.rank && !state.over;
+    const cards = p.rank
+      ? `<div class="opp-cnt">🏅${p.rank}位</div>`
+      : miniHand(p.hand.length) + `<div class="opp-cnt">${p.hand.length}枚</div>`;
+    return `<div class="opp ${turn ? 'turn' : ''} ${p.rank ? 'done' : ''}" data-pidx="${p.idx}">
+      <div class="avatar" style="background:${p.color}">${p.emoji}</div>
+      <div class="opp-name">${p.name}</div>
+      ${cards}
+      ${p.reachShown ? '<div class="reach-badge">リーチ中</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderCenter() {
+  const dirTxt = state.dir === 1 ? '⟳ 時計回り' : '⟲ 反時計回り';
+  const chips = [
+    `<span class="chip">${dirTxt}</span>`,
+    `<span class="chip chip-don">ドン${state.donCount}回 ×${state.donCount + 1}</span>`,
+    `<span class="chip chip-btn" onclick="openRules()">？ ルール</span>`,
+  ];
+  if (state.stack > 0) chips.push(`<span class="chip chip-stack">＋${state.stack}枚！</span>`);
+  const tp = state.players[state.turn];
+  if (!state.over && tp && !tp.rank && tp.turnsTaken <= 1) {
+    chips.push('<span class="chip chip-lap">1周目・効果なし</span>');
+  }
+  el('chips').innerHTML = chips.join('');
+
+  el('deck-pile').innerHTML = `<div class="card back" onclick="onDeckTap()"><span>山札</span><b>${state.deck.length}</b></div>`;
+
+  const top = state.discard[state.discard.length - 1];
+  let fieldHtml, extra = '';
+  if (state.declaredSuit) {
+    // 宣言中は「宣言された姿」のカードとして大きく表示する
+    const red = state.declaredSuit === 'H' || state.declaredSuit === 'D';
+    fieldHtml = `<div class="card field declared-card ${red ? 'red' : 'black'}">
+        <span class="ribbon">宣言!</span>
+        <span class="c-rank">${rankLabel(state.fieldRank)}</span>
+        <span class="c-suit">${SUIT_CHAR[state.declaredSuit]}</span>
+      </div>`;
+  } else {
+    fieldHtml = `<div class="card field ${cardCls(top)}">${cardFace(top)}</div>`;
+    if (top.joker && state.fieldRank > 0) {
+      extra = `<div class="declared black">「${rankLabel(state.fieldRank)}」扱い</div>`;
+    }
+  }
+  el('field-pile').innerHTML = fieldHtml + extra;
+}
+
+function onDeckTap() {
+  if (ui.mode === 'turn' && ui.opts && !ui.opts.drawn && canDrawFromDeck(state)) onDrawClick();
+}
+
+function waitText(p) {
+  const r = reachOf(p.hand);
+  const lo = Math.max(r.min, 1), hi = Math.min(r.max, 13);
+  return lo === hi ? rankLabel(lo) : rankLabel(lo) + '〜' + rankLabel(hi);
+}
+
+function renderMyArea() {
+  const me = state.players[0];
+  const myTurn = state.turn === 0 && !me.rank && !state.over;
+  el('my-head').innerHTML = `
+    <span class="avatar mini" style="background:${me.color}">${me.emoji}</span>
+    <b>あなた</b>
+    ${me.rank ? `<span class="chip">🏅${me.rank}位</span>` : ''}
+    ${me.reachShown ? '<span class="reach-badge inline">リーチ中</span>' : ''}
+    ${me.reachShown ? `<span class="chip chip-wait">${waitText(me)}待ち</span>` : ''}
+    ${ui.mode ? `<span class="chip chip-turn">${ui.mode === 'stack' ? '精算！2かジョーカーを出すか引く' : (ui.opts && ui.opts.redo ? '続けて出す！' : 'あなたの番！')}</span>` : (myTurn ? '<span class="chip chip-turn">あなたの番！</span>' : '')}`;
+
+  const hand = sortedHand(me.hand);
+  el('hand').innerHTML = hand.map(c => {
+    const sel = ui.sel.has(c.id);
+    let ok = false;
+    if (ui.mode === 'turn') ok = validatePlay([c], me.hand, state, { lap1: me.turnsTaken <= 1 }).ok;
+    else if (ui.mode === 'stack') ok = c.joker || c.rank === 2;
+    const isNew = ui.newIds.has(c.id);
+    return `<div class="card hand-card ${cardCls(c)} ${sel ? 'sel' : ''} ${ui.mode && ok ? 'ok' : ''} ${ui.mode ? '' : 'idle'}"
+      onclick="onCardTap(${c.id})">${cardFace(c)}${isNew ? '<span class="new-tag">NEW</span>' : ''}</div>`;
+  }).join('');
+
+  let ctrl = '';
+  if (ui.mode === 'turn') {
+    const cards = [...ui.sel].map(id => me.hand.find(c => c.id === id)).filter(Boolean);
+    const v = cards.length ? validatePlay(cards, me.hand, state, { lap1: me.turnsTaken <= 1 }) : { ok: false };
+    const canDraw = !ui.opts.drawn && canDrawFromDeck(state);
+    const canPass = ui.opts.drawn || !canDrawFromDeck(state);
+    ctrl = `<button class="btn" onclick="onDrawClick()" ${canDraw ? '' : 'disabled'}>1枚引く</button>
+      <button class="btn btn-play" onclick="onPlayClick()" ${v.ok ? '' : 'disabled'}>出す${cards.length > 1 ? '（' + cards.length + '枚）' : ''}</button>
+      <button class="btn btn-sub" onclick="onPassClick()" ${canPass ? '' : 'disabled'}>パス</button>`;
+  } else if (ui.mode === 'stack') {
+    const cards = [...ui.sel].map(id => me.hand.find(c => c.id === id)).filter(Boolean);
+    const v = cards.length ? validatePlay(cards, me.hand, state, { stack: true }) : { ok: false };
+    ctrl = `<button class="btn btn-warn" onclick="onStackDrawClick()">${state.stack}枚引く…</button>
+      <button class="btn btn-play" onclick="onPlayClick()" ${v.ok ? '' : 'disabled'}>上乗せして回す！</button>`;
+  } else if (me.rank && !state.over) {
+    // 自分が上がった後の観戦用コントロール
+    ctrl = `<button class="btn ${speedMode === 1 ? 'btn-play' : 'btn-sub'}" onclick="toggleFast()">⏩ 早送り${speedMode === 1 ? '中' : ''}</button>
+      <button class="btn btn-warn" onclick="skipToEnd()">⏭ 結果まで</button>`;
+  }
+  el('controls').innerHTML = ctrl;
+  setHint('');
+}
+
+function setHint(t) { el('hint').textContent = t || ''; }
+
+// ---- 画面切り替え・タイトル・リザルト ----
+function showScreen(name) {
+  ['title', 'game', 'result'].forEach(s => el(s + '-screen').classList.toggle('hidden', s !== name));
+}
+
+let selChars = [];
+let settings = { players: 5, hand: 4 };
+
+function cpuNeeded() { return settings.players - 1; }
+
+function initTitle() {
+  settings = loadSettings();
+  const saved = loadMembers();
+  selChars = saved.filter(k => CHARACTERS.some(c => c.key === k)).slice(0, cpuNeeded());
+  el('char-grid').innerHTML = CHARACTERS.map(c => `
+    <div class="char-card ${selChars.includes(c.key) ? 'sel' : ''}" data-key="${c.key}" onclick="toggleChar('${c.key}')">
+      <div class="avatar" style="background:${c.color}">${c.emoji}</div>
+      <div class="ch-name">${c.name}</div>
+      <div class="ch-level lv${c.level}">${c.levelName}</div>
+      <div class="ch-quote">${c.quips.hello}</div>
+    </div>`).join('');
+  renderOptions();
+  updateTitleState();
+  renderTotalsBoard();
+}
+
+function renderOptions() {
+  el('opt-players').innerHTML = [4, 5, 6].map(n =>
+    `<button class="opt-btn ${settings.players === n ? 'sel' : ''}" onclick="setPlayers(${n})">${n}人</button>`).join('');
+  el('opt-hand').innerHTML = [4, 5, 6].map(n =>
+    `<button class="opt-btn ${settings.hand === n ? 'sel' : ''}" onclick="setHand(${n})">${n}枚</button>`).join('');
+  el('opt-jokers').innerHTML = [0, 1, 2].map(n =>
+    `<button class="opt-btn ${settings.jokers === n ? 'sel' : ''}" onclick="setJokers(${n})">${n === 0 ? 'なし' : n + '枚'}</button>`).join('');
+  el('char-title').textContent = '対戦相手を' + cpuNeeded() + '人えらぶ';
+}
+
+function setJokers(n) {
+  settings.jokers = n;
+  saveSettings(settings);
+  renderOptions();
+}
+
+function setPlayers(n) {
+  settings.players = n;
+  if (selChars.length > cpuNeeded()) selChars = selChars.slice(0, cpuNeeded());
+  saveSettings(settings);
+  renderOptions();
+  document.querySelectorAll('.char-card').forEach(d =>
+    d.classList.toggle('sel', selChars.includes(d.dataset.key)));
+  updateTitleState();
+}
+
+function setHand(n) {
+  settings.hand = n;
+  saveSettings(settings);
+  renderOptions();
+}
+
+function randomChars() {
+  selChars = shuffle(CHARACTERS.map(c => c.key)).slice(0, cpuNeeded());
+  document.querySelectorAll('.char-card').forEach(d =>
+    d.classList.toggle('sel', selChars.includes(d.dataset.key)));
+  updateTitleState();
+}
+
+function toggleChar(key) {
+  if (selChars.includes(key)) selChars = selChars.filter(k => k !== key);
+  else if (selChars.length < cpuNeeded()) selChars.push(key);
+  document.querySelectorAll('.char-card').forEach(d =>
+    d.classList.toggle('sel', selChars.includes(d.dataset.key)));
+  updateTitleState();
+}
+
+function updateTitleState() {
+  el('char-count').textContent = selChars.length + ' / ' + cpuNeeded();
+  el('btn-start').disabled = selChars.length !== cpuNeeded();
+}
+
+function renderTotalsBoard() {
+  const t = loadTotals();
+  const rows = Object.keys(t);
+  el('total-board').innerHTML = rows.length
+    ? rows.sort((a, b) => t[b] - t[a]).map(n =>
+        `<div class="total-row"><span>${n}</span><b class="${t[n] < 0 ? 'minus' : ''}">${t[n] > 0 ? '+' : ''}${t[n]}点</b></div>`).join('')
+    : '<div class="total-row muted">まだ対戦記録がありません</div>';
+}
+
+function showResult(d) {
+  showScreen('result');
+  const lastRank = state.players.length;
+  const medal = r => r === 1 ? '🥇' : r === lastRank ? '💀' : r === 2 ? '🥈' : r === 3 ? '🥉' : r + '位';
+  const order = state.players.slice().sort((a, b) => a.rank - b.rank);
+  el('standings').innerHTML = '<h2>順位</h2>' + order.map(p => `
+    <div class="stand-row r${p.rank}">
+      <span class="stand-medal">${medal(p.rank)}</span>
+      <span class="avatar mini" style="background:${p.color}">${p.emoji}</span>
+      <span class="stand-name">${p.name}</span>
+      <span class="stand-quip">${p.rank === lastRank && p.chara ? p.chara.quips.lose : (p.rank === 1 && p.chara ? p.chara.quips.win : '')}</span>
+    </div>`).join('');
+  el('score-detail').innerHTML = `<h2>点数移動</h2>
+    <div class="score-formula">${d.loser.name}の残り<b>${d.cards}枚</b> × 10点 × <b>${d.mult}倍</b>（ドン${d.donCount}回）</div>
+    <div class="score-move"><span class="plus">${d.first.name} +${d.pts}点</span>　<span class="minus">${d.loser.name} −${d.pts}点</span></div>`;
+  const t = d.totals;
+  el('result-total').innerHTML = '<h2>通算スコア</h2>' + Object.keys(t).sort((a, b) => t[b] - t[a]).map(n =>
+    `<div class="total-row"><span>${n}</span><b class="${t[n] < 0 ? 'minus' : ''}">${t[n] > 0 ? '+' : ''}${t[n]}点</b></div>`).join('');
+}
+
+// ---- 起動 ----
+function startGame(members) {
+  saveMembers(members);
+  showScreen('game');
+  newGame(members, settings.hand, settings.jokers);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initTitle();
+  el('btn-rules').onclick = openRules;
+  el('btn-random').onclick = randomChars;
+  el('btn-start').onclick = () => { audio(); startGame(selChars); };
+  el('btn-again').onclick = () => { audio(); showScreen('game'); newGame(lastMembers, lastHandSize, lastJokers); };
+  el('btn-title').onclick = () => { initTitle(); showScreen('title'); };
+  el('btn-reset-score').onclick = () => {
+    showOverlay(`<h3>通算スコアをリセットする？</h3>
+      <button class="btn btn-warn" id="ov-yes">リセットする</button>
+      <button class="btn btn-mini" id="ov-no">やめる</button>`);
+    el('ov-yes').onclick = () => { resetTotals(); renderTotalsBoard(); hideOverlay(); };
+    el('ov-no').onclick = hideOverlay;
+  };
+});
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
